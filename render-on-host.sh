@@ -6,14 +6,16 @@ then
 	exit
 fi
 
-folder=$1
-archive=${folder}.tar
-project=${folder}.ove
+folder_path="$1"
+folder_name="$(echo $folder_path|rev|cut -d/ -f1|rev)"
+archive_path="${folder_path}.tar"
+archive_name="${folder_name}.tar"
 user=$2
 host=$3
 
-tar cf ${archive} ${folder}
-scp ${archive} ${user}@${host}:
-ssh ${user}@${host} 'tar xf '${archive}
-ssh ${user}@${host} 'rm '${archive}
-ssh ${user}@${host} 'export DISPLAY=:0 && olive-editor '${folder}'/*.ove -e &>/dev/null' &
+cd "${folder_path}/.."
+tar cf "${archive_name}" "${folder_name}"
+scp "${archive_name}" ${user}@${host}:
+ssh ${user}@${host} 'tar xf '"${archive_name}"
+ssh ${user}@${host} 'rm '"${archive_name}"
+ssh ${user}@${host} 'export DISPLAY=:0 && olive-editor '"${folder_name}"'/*.ove -e &>/dev/null'
