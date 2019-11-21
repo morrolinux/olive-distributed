@@ -1,25 +1,44 @@
+#!/usr/bin/env python3
 import argparse
 import os
 import threading
+import time
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--folder", dest='folder', help="folder containing projects folders")
 args = parser.parse_args()
 
+# dummy job list
+jobs = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
-class RenderThread:
-    def __init__(self, node_id):
-        self.node_id = node_id
+
+class RenderNode:
+    def __init__(self, address):
+        self.address = address
+        self.cpu_score = 0
+        self.net_score = 0
+        print("node ", address, "created")
+
+    def run_benchmark(self):
+        # TODO: run an actual benchmark on remote host and get results
+        self.cpu_score = 100
+        self.net_score = 100
 
     def run(self):
-        while True:
-            j = get_job()
-            if j == -1:
-                return
-            self.run_job()
+        threading.Thread(target=self.__run).start()
 
-    def run_job(self):
-        pass
+    def __run(self):
+        while True:
+            j = get_job(self.cpu_score)
+            if j == -1:
+                print("exiting!!!")
+                return
+            self.run_job(j)
+
+    def run_job(self, j):
+        print(self.address + " running job", j)
+        # os.system("./render-on-host.sh " + j + " morro " + self.address)
+        time.sleep(0.5)
 
 
 def get_subdirs(mydir):
@@ -27,9 +46,11 @@ def get_subdirs(mydir):
 
 
 def get_job(node_rank):
-    # TODO: implement some logic for assigning the job according to the node rank
-    # TODO: pop the element
-    pass
+    # TODO: implement some logic for assigning the job according to the node rank (and pop elements)
+    try:
+        return jobs.pop()
+    except IndexError:
+        return -1
 
 
 def get_render_nodes():
@@ -47,19 +68,8 @@ if __name__ == '__main__':
     print("render nodes:", nodes)
 
     for n in nodes:
-        # TODO: istanzio una classe node_x.x.x.x e lancio il thread
-        # threading.Thread(target=self.check_remotes).start()
-        pass
+        # instantiate a new node object for each node found in list
+        exec("node_" + n.replace(".", "_") + " = RenderNode(n)")
+        exec("node_" + n.replace(".", "_") + ".run()")
 
-    # TODO: resto in attesa per tutti i thread rimanenti (semaforo?)
-
-    '''
-    print("starting batch")
-    for subdir in get_subdirs(args.folder):
-        proj = args.folder + subdir
-        print("rendering", proj)
-        # os.system("./render-on-host.sh " + proj + " morro " +  )
-    '''
-
-
-
+    # TODO: wait for all the threads to finish
