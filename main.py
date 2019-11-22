@@ -3,6 +3,8 @@ import argparse
 import os
 import threading
 import time
+from project_manager import Job
+from project_manager import ProjectManager
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--folder", dest='folder', help="folder containing projects folders")
@@ -10,12 +12,6 @@ args = parser.parse_args()
 
 jobs = []
 render_nodes = []
-
-
-class Job:
-    def __init__(self, job_path, job_weight):
-        self.job_path = job_path
-        self.job_weight = job_weight
 
 
 class RenderNode:
@@ -26,9 +22,9 @@ class RenderNode:
 
     def run_benchmark(self):
         import random
-        # self.cpu_score = random.randrange(1, 10)
+        self.cpu_score = random.randrange(1, 10)
         self.net_score = random.randrange(1, 10)
-        self.cpu_score = float(os.popen("./bench-host.sh morro " + self.address).read())
+        # self.cpu_score = float(os.popen("./bench-host.sh morro " + self.address).read())
         print("node", self.address, "CPU:", self.cpu_score)
 
     def run(self):
@@ -44,8 +40,8 @@ class RenderNode:
 
     def run_job(self, j):
         print(self.address + "\trunning job: ", j.job_path, "\tWeight: ", j.job_weight)
-        # time.sleep(0.5)
-        os.system("./render-on-host.sh \"" + j.job_path + "\" morro " + self.address)
+        time.sleep(0.5)
+        # os.system("./render-on-host.sh \"" + j.job_path + "\" morro " + self.address)
 
 
 def get_subdirs(mydir):
@@ -58,7 +54,6 @@ def get_render_nodes():
 
 
 def get_job(node_rank):
-    # TODO: implement some logic for assigning the job according to the node rank (and pop elements)
     if len(jobs) <= 0:
         return Job("-1", -1)
 
@@ -98,8 +93,8 @@ if __name__ == '__main__':
     # for i in range(10):
     #     jobs.append(Job(i, random.randrange(1, 10)))
 
-    for d in get_subdirs(args.folder):
-        jobs.append(Job(args.folder + d, 10))
+    project_manager = ProjectManager()
+    jobs = project_manager.explore(args.folder)
 
     # instantiate (and benchmark) a new node object for each node found in list
     benchmark_threads = []
