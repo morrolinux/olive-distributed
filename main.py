@@ -22,9 +22,9 @@ class RenderNode:
 
     def run_benchmark(self):
         import random
-        self.cpu_score = random.randrange(1, 10)
+        # self.cpu_score = random.randrange(1, 10)
         self.net_score = random.randrange(1, 10)
-        # self.cpu_score = float(os.popen("./bench-host.sh morro " + self.address).read())
+        self.cpu_score = float(os.popen("./bench-host.sh morro " + str(self.address)).read())
         print("node", self.address, "CPU:", self.cpu_score)
 
     def run(self):
@@ -40,8 +40,10 @@ class RenderNode:
 
     def run_job(self, j):
         print(self.address + "\trunning job: ", j.job_path, "\tWeight: ", j.job_weight)
-        time.sleep(0.5)
-        # os.system("./render-on-host.sh \"" + j.job_path + "\" morro " + self.address)
+        # time.sleep(0.5)
+        job_path = j.job_path[:j.job_path.rfind("/")]
+
+        os.system("./render-on-host.sh \"" + job_path + "\" morro " + str(self.address))
 
 
 def get_render_nodes():
