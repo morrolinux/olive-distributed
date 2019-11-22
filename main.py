@@ -10,8 +10,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--folder", dest='folder', help="folder containing projects folders")
 args = parser.parse_args()
 
-jobs = []
 render_nodes = []
+project_manager = None
 
 
 class RenderNode:
@@ -32,7 +32,7 @@ class RenderNode:
 
     def __run(self):
         while True:
-            j = get_job(self.cpu_score)
+            j = project_manager.get_job(self.cpu_score)
             if j.job_weight == -1:
                 print("exiting!!!")
                 return
@@ -44,42 +44,9 @@ class RenderNode:
         # os.system("./render-on-host.sh \"" + j.job_path + "\" morro " + self.address)
 
 
-def get_subdirs(mydir):
-    return [name for name in os.listdir(mydir) if os.path.isdir(os.path.join(mydir, name))]
-
-
 def get_render_nodes():
     with open('nodes.txt') as fp:
         return fp.read().splitlines()
-
-
-def get_job(node_rank):
-    if len(jobs) <= 0:
-        return Job("-1", -1)
-
-    max_score = max(node.cpu_score for node in render_nodes)
-    min_score = min(node.cpu_score for node in render_nodes)
-    max_weight = max(job.job_weight for job in jobs)
-    min_weight = min(job.job_weight for job in jobs)
-    print("max weight:", max_weight, "\nmin weight:", min_weight)
-
-    tmp = Job("-1", -1)
-
-    # TODO: improve classification
-    if node_rank > (max_score + min_score)/2:
-        for j in jobs:
-            if j.job_weight >= (max_weight + min_weight)/2:
-                tmp = j
-                jobs.remove(j)
-                break
-    else:
-        for j in jobs:
-            if j.job_weight <= (max_weight + min_weight)/2:
-                tmp = j
-                jobs.remove(j)
-                break
-
-    return tmp
 
 
 if __name__ == '__main__':
@@ -93,15 +60,15 @@ if __name__ == '__main__':
     # for i in range(10):
     #     jobs.append(Job(i, random.randrange(1, 10)))
 
-    project_manager = ProjectManager()
-    jobs = project_manager.explore(args.folder)
-
     # instantiate (and benchmark) a new node object for each node found in list
     benchmark_threads = []
     for n in get_render_nodes():
         render_nodes.append(RenderNode(n))
         benchmark_threads.append(threading.Thread(target=render_nodes[-1].run_benchmark))
         benchmark_threads[-1].start()
+
+    project_manager = ProjectManager(render_nodes)
+    project_manager.explore(args.folder)
 
     # wait for benchmark results from all hosts
     for b in benchmark_threads:
