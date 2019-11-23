@@ -48,7 +48,7 @@ class ProjectManager:
         return max(int(v.attributes['out'].value) for v in items[max(0, num_clips - 50):num_clips])
 
     def get_job(self, node_rank):
-        print("job request from", node_rank)
+        # print("job request from", node_rank)
         if len(self.jobs) <= 0:
             return Job("-1", -1)
 
@@ -59,8 +59,11 @@ class ProjectManager:
         # print("max weight:", max_weight, "\nmin weight:", min_weight)
 
         tmp = Job("-1", -1)
+        fuzzy_job = 0
 
-        fuzzy_job = min_weight + ((max_weight - min_weight) / (max_score - min_score)) * (node_rank - min_score)
+        if max_score != min_score:
+            fuzzy_job = min_weight + ((max_weight - min_weight) / (max_score - min_score)) * (node_rank - min_score)
+
         assigned_job_weight = min(self.jobs, key=lambda x: abs(x.job_weight - fuzzy_job))
 
         for j in self.jobs:

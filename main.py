@@ -22,7 +22,7 @@ class RenderNode:
 
     def run_benchmark(self):
         import random
-        # self.cpu_score = random.randrange(1, 10)
+        self.cpu_score = random.randrange(1, 10)
         self.net_score = random.randrange(1, 10)
         self.cpu_score = float(os.popen("./bench-host.sh morro " + str(self.address)).read())
         print("node", self.address, "CPU:", self.cpu_score)
@@ -34,7 +34,7 @@ class RenderNode:
         while True:
             j = project_manager.get_job(self.cpu_score)
             if j.job_weight == -1:
-                print("exiting!!!")
+                print(self.address, "\tterminating...")
                 return
             self.run_job(j)
 
@@ -63,6 +63,7 @@ if __name__ == '__main__':
     #     jobs.append(Job(i, random.randrange(1, 10)))
 
     # instantiate (and benchmark) a new node object for each node found in list
+    print("\n=============== Nodes Setup ===============")
     benchmark_threads = []
     for n in get_render_nodes():
         render_nodes.append(RenderNode(n))
@@ -77,6 +78,7 @@ if __name__ == '__main__':
         b.join()
 
     # start nodes
+    print("\n============ Starting Nodes ===============")
     for n in render_nodes:
         n.run()
 
