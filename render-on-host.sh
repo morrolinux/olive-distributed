@@ -14,11 +14,11 @@ user=$2
 host=$3
 
 cd "${folder_path}/.."
-tar cf "$archive_name" "$folder_name"
-scp "$archive_name" ${user}@${host}:
+tar cf "$archive_name" "$folder_name" >/dev/null
+scp "$archive_name" ${user}@${host}: >/dev/null
 rm "$archive_name"
-ssh ${user}@${host} 'tar xf '\"${archive_name}\"
-ssh ${user}@${host} 'rm '\"$archive_name\"
+ssh ${user}@${host} 'tar xf '\"${archive_name}\" >/dev/null
+ssh ${user}@${host} 'rm '\"$archive_name\" >/dev/null
 ssh ${user}@${host} 'export DISPLAY=:0 && olive-editor '\"$folder_name\"'/*.ove -e &>/dev/null'
-scp ${user}@${host}:"\"${folder_name}\""/'*.ove.mp4' .
-ssh ${user}@${host} 'rm -rf '\""$folder_name\""
+scp ${user}@${host}:"\"${folder_name}\""/'*.ove.mp4' . >/dev/null
+ssh ${user}@${host} 'rm -rf '\""$folder_name\"" >/dev/null

@@ -48,15 +48,13 @@ class ProjectManager:
         return max(int(v.attributes['out'].value) for v in items[max(0, num_clips - 50):num_clips])
 
     def get_job(self, n):
-        # print("job request from", n.address)
         if len(self.jobs) <= 0:
-            return Job("-1", -1)
+            return Job("abort", -1)
 
         max_score = max(node.cpu_score for node in self.render_nodes)
         min_score = min(node.cpu_score for node in self.render_nodes)
         max_weight = max(job.job_weight for job in self.jobs)
         min_weight = min(job.job_weight for job in self.jobs)
-        # print("max weight:", max_weight, "\nmin weight:", min_weight)
 
         abort = Job("-1", -1)
         fuzzy_job_weight = 0
@@ -72,14 +70,16 @@ class ProjectManager:
         # if there are more nodes than jobs, check weather a faster node is about to finish its work before assignment
         # if so, don't assign the current job to the current (slower) node and terminate it.
         if len(self.jobs) < len(self.render_nodes):
-            print("less jobs than workers!")
+            # print("less jobs than workers!")
             for worker in self.render_nodes:
                 w_eta = worker.job_eta() + worker.job_eta(assigned_job)
-                if w_eta < n.job_eta(assigned_job):
+                n_eta = n.job_eta(assigned_job)
+                if w_eta < n_eta:
                     print("PROJECT MANAGER: job", assigned_job, "\n",
-                          worker.address, "ETA:", w_eta, "\t", n.address, "ETA:", n.job_eta(assigned_job), "\n",
-                          worker.address, "is best suitable for this job, aborting", n.address)
-                    return abort
+                          n.address, "ETA:", round(n.job_eta(assigned_job)), "\t",
+                          worker.address, "ETA:", round(w_eta), "\n",
+                          "Refusing to assign a job to", n.address)
+                    return Job("retry", 5)
 
         self.jobs.remove(assigned_job)
         return assigned_job
