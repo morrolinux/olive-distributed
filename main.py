@@ -42,7 +42,7 @@ class RenderNode:
         self.cpu_score = random.randrange(1, 10)
         self.net_score = random.randrange(1, 10)
         self.cpu_score = float(os.popen("./bench-host.sh morro " + str(self.address)).read())
-        print("node", self.address, "\tCPU:", self.cpu_score)
+        print("node", self.address, "\t\tCPU:", self.cpu_score)
 
     def run(self):
         threading.Thread(target=self.__run).start()
