@@ -4,6 +4,7 @@ import os
 import threading
 import time
 from project_manager import Job
+import random
 from project_manager import ProjectManager
 
 parser = argparse.ArgumentParser()
@@ -19,12 +20,28 @@ class RenderNode:
         self.address = address
         self.cpu_score = 0
         self.net_score = 0
+        self.__job_start_time = None
+        self.__job = None
+        self.sample_weight = None
+        self.sample_time = None
+
+    def job_eta(self, j=None):
+        if self.sample_time is None or self.sample_weight is None:
+            return 9223372036854775807
+
+        if j is not None:
+            t = (j.job_weight * self.sample_time) / self.sample_weight
+            # print(self.address, "job", j.job_path, "ETA:", t)
+        else:
+            t = self.job_eta(self.__job) - (self.__job_start_time - time.time())
+            # print(self.address, "JOB", self.__job.job_path, "ETA:", t)
+        return t
 
     def run_benchmark(self):
         import random
         self.cpu_score = random.randrange(1, 10)
         self.net_score = random.randrange(1, 10)
-        self.cpu_score = float(os.popen("./bench-host.sh morro " + str(self.address)).read())
+        # self.cpu_score = float(os.popen("./bench-host.sh morro " + str(self.address)).read())
         print("node", self.address, "CPU:", self.cpu_score)
 
     def run(self):
@@ -32,7 +49,7 @@ class RenderNode:
 
     def __run(self):
         while True:
-            j = project_manager.get_job(self.cpu_score)
+            j = project_manager.get_job(self)
             if j.job_weight == -1:
                 print(self.address, "\tterminating...")
                 return
@@ -40,10 +57,15 @@ class RenderNode:
 
     def run_job(self, j):
         print(self.address + "\trunning job: ", j.job_path, "\tWeight: ", j.job_weight)
-        # time.sleep(0.5)
         job_path = j.job_path[:j.job_path.rfind("/")]
+        self.__job_start_time = time.time()
+        self.__job = j
 
-        os.system("./render-on-host.sh \"" + job_path + "\" morro " + str(self.address))
+        time.sleep((j.job_weight/self.cpu_score)/100)
+        # os.system("./render-on-host.sh \"" + job_path + "\" morro " + str(self.address))
+
+        self.sample_weight = j.job_weight
+        self.sample_time = time.time() - self.__job_start_time
 
 
 def get_render_nodes():

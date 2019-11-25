@@ -47,8 +47,8 @@ class ProjectManager:
         num_clips = len(items)
         return max(int(v.attributes['out'].value) for v in items[max(0, num_clips - 50):num_clips])
 
-    def get_job(self, node_rank):
-        # print("job request from", node_rank)
+    def get_job(self, n):
+        # print("job request from", n.address)
         if len(self.jobs) <= 0:
             return Job("-1", -1)
 
@@ -58,18 +58,28 @@ class ProjectManager:
         min_weight = min(job.job_weight for job in self.jobs)
         # print("max weight:", max_weight, "\nmin weight:", min_weight)
 
-        tmp = Job("-1", -1)
-        fuzzy_job = 0
+        abort = Job("-1", -1)
+        fuzzy_job_weight = 0
 
         if max_score != min_score:
-            fuzzy_job = min_weight + ((max_weight - min_weight) / (max_score - min_score)) * (node_rank - min_score)
+            fuzzy_job_weight = min_weight + ((max_weight - min_weight) / (max_score - min_score)) * (n.cpu_score - min_score)
 
-        assigned_job_weight = min(self.jobs, key=lambda x: abs(x.job_weight - fuzzy_job))
+        assigned_job = min(self.jobs, key=lambda x: abs(x.job_weight - fuzzy_job_weight))
 
-        for j in self.jobs:
-            if j == assigned_job_weight:
-                tmp = j
-                self.jobs.remove(j)
-                break
+        if assigned_job is None:
+            return abort
 
-        return tmp
+        # if there are more nodes than jobs, check weather a faster node is about to finish its work before assignment
+        # if so, don't assign the current job to the current (slower) node and terminate it.
+        if len(self.jobs) < len(self.render_nodes):
+            print("less jobs than workers!")
+            for worker in self.render_nodes:
+                w_eta = worker.job_eta() + worker.job_eta(assigned_job)
+                if w_eta < n.job_eta(assigned_job):
+                    print("PROJECT MANAGER: job", assigned_job, "\n",
+                          worker.address, "ETA:", w_eta, "\t", n.address, "ETA:", n.job_eta(assigned_job), "\n",
+                          worker.address, "is best suitable for this job, aborting", n.address)
+                    return abort
+
+        self.jobs.remove(assigned_job)
+        return assigned_job
