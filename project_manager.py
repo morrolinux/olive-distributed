@@ -1,11 +1,15 @@
 from xml.dom import minidom
 import os
+import math
 
 
 class Job:
-    def __init__(self, job_path, job_weight):
+    def __init__(self, job_path, job_weight, split=False):
         self.job_path = job_path
         self.job_weight = job_weight
+        self.len = job_weight
+        self.split = split
+        self.last_frame = 0
 
     def __str__(self):
         return "" + self.job_path + " : " + str(self.job_weight)
@@ -41,6 +45,9 @@ class ProjectManager:
                     job_path = os.path.join(root, file)
                     self.jobs.append(Job(job_path, self.get_job_complexity(job_path)))
 
+    def add(self, project, part=False):
+        self.jobs.append(Job(project, self.get_job_complexity(project), split=part))
+
     def get_job_complexity(self, j):
         olive_project = minidom.parse(j)
         items = olive_project.getElementsByTagName('clip')
@@ -69,7 +76,7 @@ class ProjectManager:
 
         # if there are more nodes than jobs, check weather a faster node is about to finish its work before assignment
         # if so, don't assign the current job to the current (slower) node and terminate it.
-        if len(self.jobs) < len(self.render_nodes):
+        if len(self.jobs) < len(self.render_nodes) and not assigned_job.split:
             # print("less jobs than workers!")
             for worker in self.render_nodes:
                 w_eta = worker.job_eta() + worker.job_eta(assigned_job)
@@ -82,5 +89,21 @@ class ProjectManager:
                           "Refusing to assign a job to", n.address)
                     '''
                     return Job("retry", 1)
+
+        if assigned_job.split:
+            tot_w = 0
+            for worker in self.render_nodes:
+                tot_w = tot_w + worker.cpu_score
+            chunk_size = math.ceil((n.cpu_score / tot_w) * assigned_job.len)
+            job_start = assigned_job.last_frame
+            job_end = min(job_start + chunk_size, assigned_job.len)
+            # TODO: update last_frame parameter in job from array
+            assigned_job.last_frame = job_end   # I think this might be copied so not useful to do that
+            if assigned_job.len == job_end:
+                self.jobs.remove(assigned_job)
+            print(n.address, "will do from", job_start, "to", job_end)
+            return assigned_job, job_start, job_end
+
         self.jobs.remove(assigned_job)
-        return assigned_job
+
+        return assigned_job, None, None

@@ -9,6 +9,7 @@ from project_manager import ProjectManager
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--folder", dest='folder', help="folder containing projects folders")
+parser.add_argument("--project", dest='project', help="project file to be rendered on multiple nodes")
 args = parser.parse_args()
 
 render_nodes = []
@@ -49,16 +50,19 @@ class RenderNode:
 
     def __run(self):
         while True:
-            j = project_manager.get_job(self)
+            try:
+                j, start, end = project_manager.get_job(self)
+            except TypeError:
+                print(j.job_path, j.job_weight)
             if j.job_path == "abort":
                 print(self.address, "\tterminating...")
                 return
             if j.job_path == "retry":
                 time.sleep(j.job_weight)
                 continue
-            self.run_job(j)
+            self.run_job(j, start, end)
 
-    def run_job(self, j):
+    def run_job(self, j, start, end):
         job_folder = j.job_path[:j.job_path.rfind("/")]
         self.__job_start_time = time.time()
         self.__job = j
@@ -66,12 +70,18 @@ class RenderNode:
               "\tWeight: ", j.job_weight, "\tETA:", round(self.job_eta()), "s.")
 
         # time.sleep((j.job_weight/self.cpu_score)/100)
-        os.system("./render-on-host.sh \"" + job_folder + "\" morro " + str(self.address))
+        s = e = ""
+        if start is not None:
+            s = " "+str(start)
+        if end is not None:
+            e = " "+str(end)
+
+        os.system("./render-on-host.sh \"" + job_folder + "\" morro " + str(self.address) + s + e)
 
         self.sample_weight = j.job_weight
         self.sample_time = time.time() - self.__job_start_time
         self.__job = None
-        
+
 
 def get_render_nodes():
     with open('nodes.txt') as fp:
@@ -80,8 +90,8 @@ def get_render_nodes():
 
 if __name__ == '__main__':
 
-    if args.folder is None:
-        print("usage: --folder <folder>")
+    if args.folder is None and args.project is None:
+        print("usage: --folder <folder> | --project <file>")
         exit()
 
     # instantiate (and benchmark) a new node object for each node found in list
@@ -93,7 +103,11 @@ if __name__ == '__main__':
         benchmark_threads[-1].start()
 
     project_manager = ProjectManager(render_nodes)
-    project_manager.explore(args.folder)
+
+    if args.folder is not None:
+        project_manager.explore(args.folder)
+    if args.project is not None:
+        project_manager.add(args.project, part=True)
 
     # wait for benchmark results from all hosts
     for b in benchmark_threads:
