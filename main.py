@@ -71,8 +71,7 @@ class RenderNode:
         self.sample_weight = j.job_weight
         self.sample_time = time.time() - self.__job_start_time
         self.__job = None
-        self.__job_start_time
-
+        
 
 def get_render_nodes():
     with open('nodes.txt') as fp:
