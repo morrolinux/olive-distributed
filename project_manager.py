@@ -75,11 +75,12 @@ class ProjectManager:
                 w_eta = worker.job_eta() + worker.job_eta(assigned_job)
                 n_eta = n.job_eta(assigned_job)
                 if w_eta < n_eta:
+                    '''
                     print("PROJECT MANAGER: job", assigned_job, "\n",
                           n.address, "ETA:", round(n.job_eta(assigned_job)), "\t",
                           worker.address, "ETA:", round(w_eta), "\n",
                           "Refusing to assign a job to", n.address)
-                    return Job("retry", 5)
-
+                    '''
+                    return Job("retry", 1)
         self.jobs.remove(assigned_job)
         return assigned_job
