@@ -50,10 +50,7 @@ class RenderNode:
 
     def __run(self):
         while True:
-            try:
-                j, start, end = project_manager.get_job(self)
-            except TypeError:
-                print(j.job_path, j.job_weight)
+            j, start, end = project_manager.get_job(self)
             if j.job_path == "abort":
                 print(self.address, "\tterminating...")
                 return

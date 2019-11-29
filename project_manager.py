@@ -56,7 +56,8 @@ class ProjectManager:
 
     def get_job(self, n):
         if len(self.jobs) <= 0:
-            return Job("abort", -1)
+            print("PROJECT MANAGER: no more work to do")
+            return Job("abort", -1), None, None
 
         max_score = max(node.cpu_score for node in self.render_nodes)
         min_score = min(node.cpu_score for node in self.render_nodes)
@@ -72,12 +73,11 @@ class ProjectManager:
         assigned_job = min(self.jobs, key=lambda x: abs(x.job_weight - fuzzy_job_weight))
 
         if assigned_job is None:
-            return abort
+            return abort, None, None
 
         # if there are more nodes than jobs, check weather a faster node is about to finish its work before assignment
         # if so, don't assign the current job to the current (slower) node and terminate it.
         if len(self.jobs) < len(self.render_nodes) and not assigned_job.split:
-            # print("less jobs than workers!")
             for worker in self.render_nodes:
                 w_eta = worker.job_eta() + worker.job_eta(assigned_job)
                 n_eta = n.job_eta(assigned_job)
@@ -88,7 +88,7 @@ class ProjectManager:
                           worker.address, "ETA:", round(w_eta), "\n",
                           "Refusing to assign a job to", n.address)
                     '''
-                    return Job("retry", 1)
+                    return Job("abort", -1), None, None
 
         if assigned_job.split:
             tot_w = 0
@@ -97,13 +97,14 @@ class ProjectManager:
             chunk_size = math.ceil((n.cpu_score / tot_w) * assigned_job.len)
             job_start = assigned_job.last_frame
             job_end = min(job_start + chunk_size, assigned_job.len)
-            # TODO: update last_frame parameter in job from array
-            assigned_job.last_frame = job_end   # I think this might be copied so not useful to do that
+            assigned_job.last_frame = job_end
+            print(n.address, "will export", assigned_job.job_path, "from", job_start, "to", job_end)
             if assigned_job.len == job_end:
                 self.jobs.remove(assigned_job)
-            print(n.address, "will do from", job_start, "to", job_end)
+                # TODO: assegnare un nome sequenziale ai progetti da esportare per poterli mergiare con ffmpeg
+                # TODO: quando ciascun nodo che ha preso parte ad un job split chiede un nuovo lavoro, so di aver
+                #  terminato e posso ripulire dall'archivio .tar e UNIRE i file parziali ritornati dai nodi
             return assigned_job, job_start, job_end
 
         self.jobs.remove(assigned_job)
-
         return assigned_job, None, None

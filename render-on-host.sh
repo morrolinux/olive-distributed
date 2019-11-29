@@ -24,7 +24,7 @@ fi
 cd "${folder_path}/.."
 tar cf "$archive_name" "$folder_name" >/dev/null
 scp "$archive_name" ${user}@${host}: >/dev/null
-rm "$archive_name"
+# rm "$archive_name"
 ssh ${user}@${host} 'tar xf '\"${archive_name}\" >/dev/null
 ssh ${user}@${host} 'rm '\"$archive_name\" >/dev/null
 ssh ${user}@${host} 'export DISPLAY=:0 && olive-editor '\"$folder_name\"'/*.ove -e '$export_start $export_end'&>/dev/null'
