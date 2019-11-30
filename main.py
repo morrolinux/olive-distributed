@@ -73,7 +73,7 @@ class RenderNode:
         if end is not None:
             e = " "+str(end)
 
-        os.system("./render-on-host.sh \"" + job_folder + "\" morro " + str(self.address) + s + e)
+        os.system("./render-on-host.sh \"" + job_folder + "\" morro " + str(self.address) + " " + str(j.export_name) + s + e)
 
         self.sample_weight = j.job_weight
         self.sample_time = time.time() - self.__job_start_time
