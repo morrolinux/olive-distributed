@@ -31,5 +31,5 @@ ssh ${user}@${host} 'rm '\"$archive_name\" >/dev/null
 ssh ${user}@${host} 'export DISPLAY=:0 && olive-editor '\"$folder_name\"'/*.ove -e '$export_name $export_start $export_end'&>/dev/null'
 cd "${folder_path}"
 scp ${user}@${host}:"${export_name}.mp4" . >/dev/null
-ssh ${user}@${host}:"rm ${export_name}.mp4" . >/dev/null
+ssh ${user}@${host} "rm ${export_name}.mp4" . >/dev/null
 ssh ${user}@${host} 'rm -rf '\""$folder_name\"" >/dev/null
