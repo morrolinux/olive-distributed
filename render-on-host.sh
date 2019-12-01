@@ -2,7 +2,7 @@
 
 if [[ $# -lt 3 ]]
 then
-	echo "usage: <project folder> <user> <host> [start] [end]"
+	echo "usage: <project folder> <user> <host> [name] [start] [end]"
 	exit
 fi
 
@@ -22,14 +22,20 @@ else
 	export_end=""
 fi
 
-cd "${folder_path}/.."
-tar cf "$archive_name" "$folder_name" >/dev/null
-scp "$archive_name" ${user}@${host}: >/dev/null
-# rm "$archive_name"
-ssh ${user}@${host} 'tar xf '\"${archive_name}\" >/dev/null
-ssh ${user}@${host} 'rm '\"$archive_name\" >/dev/null
+if [[ $# -lt 5 ]]
+then
+	cd "${folder_path}/.."
+	tar cf "$archive_name" "$folder_name" >/dev/null
+	scp "$archive_name" ${user}@${host}: >/dev/null
+	# rm "$archive_name"
+	ssh ${user}@${host} 'tar xf '\"${archive_name}\" >/dev/null
+	ssh ${user}@${host} 'rm '\"$archive_name\" >/dev/null
+else
+	echo "mounting sshfs.."
+	folder_name="olive-share"
+fi
 ssh ${user}@${host} 'export DISPLAY=:0 && olive-editor '\"$folder_name\"'/*.ove -e '$export_name $export_start $export_end'&>/dev/null'
 cd "${folder_path}"
 scp ${user}@${host}:"${export_name}.mp4" . >/dev/null
 ssh ${user}@${host} "rm ${export_name}.mp4" . >/dev/null
-ssh ${user}@${host} 'rm -rf '\""$folder_name\"" >/dev/null
+# ssh ${user}@${host} 'rm -rf '\""$folder_name\"" >/dev/null

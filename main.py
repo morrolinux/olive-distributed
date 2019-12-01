@@ -50,16 +50,16 @@ class RenderNode:
 
     def __run(self):
         while True:
-            j, start, end = project_manager.get_job(self)
+            j, name, start, end = project_manager.get_job(self)
             if j.job_path == "abort":
                 print(self.address, "\tterminating...")
                 return
             if j.job_path == "retry":
                 time.sleep(j.job_weight)
                 continue
-            self.run_job(j, start, end)
+            self.run_job(j, name, start, end)
 
-    def run_job(self, j, start, end):
+    def run_job(self, j, name, start, end):
         job_folder = j.job_path[:j.job_path.rfind("/")]
         self.__job_start_time = time.time()
         self.__job = j
@@ -67,13 +67,15 @@ class RenderNode:
               "\tWeight: ", j.job_weight, "\tETA:", round(self.job_eta()), "s.")
 
         # time.sleep((j.job_weight/self.cpu_score)/100)
-        s = e = ""
+        job_start = job_end = job_name = ""
         if start is not None:
-            s = " "+str(start)
+            job_start = " "+str(start)
         if end is not None:
-            e = " "+str(end)
-
-        os.system("./render-on-host.sh \"" + job_folder + "\" morro " + str(self.address) + " " + str(j.export_name) + s + e)
+            job_end = " "+str(end)
+        if name is not None:
+            job_name = " "+str(name)
+        os.system("./render-on-host.sh \"" + job_folder + "\" morro " +
+                  str(self.address) + job_name + job_start + job_end)
 
         self.sample_weight = j.job_weight
         self.sample_time = time.time() - self.__job_start_time

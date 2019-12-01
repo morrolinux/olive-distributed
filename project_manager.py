@@ -1,13 +1,13 @@
 from xml.dom import minidom
 import os
 import math
+import threading
 
 
 class Job:
     def __init__(self, job_path, job_weight, split=False):
         self.job_path = job_path
         self.job_weight = job_weight
-        self.export_name = "video"
         self.len = job_weight
         self.split = split
         self.last_rendered_frame = 0
@@ -41,7 +41,8 @@ class ProjectManager:
         self.split_job = None
         self.split_nodes = []
         self.split_nodes_done = 0
-        self.parts = []
+        self.parts = 0
+        self.parts_lock = threading.Lock()
 
     def explore(self, folder):
         for root, dirs, files in os.walk(folder):
@@ -60,9 +61,8 @@ class ProjectManager:
         return max(int(v.attributes['out'].value) for v in items[max(0, num_clips - 50):num_clips])
 
     def write_concat_list(self, list_name):
-        self.parts.sort()
         with open(list_name, "w") as m:
-            for p in self.parts:
+            for p in range(1, self.parts + 1):
                 m.write("file \'" + str(p) + ".mp4\'\n")
 
     def merge_parts(self, output_name):
@@ -71,8 +71,9 @@ class ProjectManager:
         self.write_concat_list(list_name)
         os.system("ffmpeg -f concat -safe 0 -i " + list_name + " -c copy " + output_name + ".mp4")
         os.remove(list_name)
-        for p in self.parts:
+        for p in range(1, self.parts + 1):
             os.remove(str(p) + ".mp4")
+            pass
 
     def get_job(self, n):
         # when each node has come back asking for a job, we know they all finished the ongoing split job
@@ -80,13 +81,12 @@ class ProjectManager:
             self.split_nodes_done = self.split_nodes_done + 1
             if self.split_nodes_done == len(self.render_nodes):
                 # TODO: ATM only one split job per invocation is possible
-                os.remove(self.split_job.job_path[:self.split_job.job_path.rfind("/")]+".tar")
                 self.merge_parts(self.split_job.job_path[self.split_job.job_path.rfind("/")+1:])
                 print("Export merged. Finished!!!")
 
         if len(self.jobs) <= 0:
             print("PROJECT MANAGER: no more work to do")
-            return Job("abort", -1), None, None
+            return Job("abort", -1), None, None, None
 
         max_score = max(node.cpu_score for node in self.render_nodes)
         min_score = min(node.cpu_score for node in self.render_nodes)
@@ -102,7 +102,7 @@ class ProjectManager:
         assigned_job = min(self.jobs, key=lambda x: abs(x.job_weight - fuzzy_job_weight))
 
         if assigned_job is None:
-            return abort, None, None
+            return abort, None, None, None
 
         # if there are more nodes than jobs, check weather a faster node is about to finish its work before assignment
         # if so, don't assign the current job to the current (slower) node and terminate it.
@@ -117,9 +117,10 @@ class ProjectManager:
                           worker.address, "ETA:", round(w_eta), "\n",
                           "Refusing to assign a job to", n.address)
                     '''
-                    return Job("abort", -1), None, None
+                    return Job("abort", -1), None, None, None
 
         if assigned_job.split:
+            self.parts_lock.acquire()
             self.split_job = assigned_job
 
             # assign the given worker a chunk size proportional to its rank
@@ -132,21 +133,22 @@ class ProjectManager:
             job_start = self.split_job.last_rendered_frame
             job_end = min(job_start + chunk_size, self.split_job.len)
             # TODO: Make sure to ALWAYS end on a keyframe...
-            self.split_job.last_rendered_frame = job_end  # + 1
+            self.split_job.last_rendered_frame = job_end
 
             # append the given worker to the list of workers doing a split job; save the split job
             # TODO: beware of race condition for len(self.split_nodes)
             self.split_nodes.append(n)
-            self.parts.append(len(self.split_nodes))
-            self.split_job.export_name = self.parts[-1]
+            self.parts = self.parts + 1
 
-            print(n.address, "will export", self.split_job.job_path, "from", job_start, "to", job_end)
+            print(n.address, "will export", self.split_job.job_path, "from", job_start, "to", job_end,
+                  "- part", self.parts, "(", job_end - job_start, "frames )")
 
             if self.split_job.len == job_end:
                 self.jobs.remove(assigned_job)
                 # TODO: probably don't need to save self.split and remove it from the queue, but instead
                 #  keep it until termination condition (at the beginning of this procedure) is reached.
-            return self.split_job, job_start, job_end
+            self.parts_lock.release()
+            return self.split_job, str(self.parts), job_start, job_end
 
         self.jobs.remove(assigned_job)
-        return self.split_job, None, None
+        return self.split_job, None, None, None
