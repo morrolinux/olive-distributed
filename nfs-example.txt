@@ -3,7 +3,7 @@ sudo systemctl start nfs-server.service
 sudo systemctl restart rpcbind.service
 
 # server ADD share	(world access)
-sudo exportfs *:/path/to/folder/
+sudo exportfs *:/path/to/folder/ -o rw
 
 # client MOUNT
 sudo mount server-ip:/path/to/folder/ ~/olive-share
