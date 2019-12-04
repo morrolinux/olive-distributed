@@ -33,7 +33,7 @@ else
 fi
 
 # reverse mount the local folder to olive-share on remote host (FS push)
-dpipe /usr/lib/ssh/sftp-server = ssh ${user}@${host} sshfs :"${folder_path}" olive-share -o slave &
+dpipe /usr/lib/ssh/sftp-server = ssh ${user}@${host} sshfs :\"${folder_path}\" olive-share -o slave &
 
 # Olive export
 ssh ${user}@${host} "export DISPLAY=:0 && cd olive-share && olive-editor ~/olive-share/${project_name} -e $export_name $export_start $export_end &>/dev/null"
