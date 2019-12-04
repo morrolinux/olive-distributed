@@ -16,5 +16,8 @@ scp "bench/sample.ove" ${user}@${host}:
 t=$(ssh ${user}@${host} 'export DISPLAY=:0 && (time -p olive-editor sample.ove -e) |& grep real | cut -d" " -f2 | tr "," "."')
 ssh ${user}@${host} 'rm "sample.mp4"; rm "sample.ove"; rm "sample.ove.mp4"'
 
+# even more realistic benchmark? 
+# t=$((time -p ./render-on-host.sh bench/sample.ove ${user} ${host}) |& grep real | cut -d" " -f2 | tr "," ".")
+
 score=$(echo "scale=8; (1 / $t) * 1000000" | bc)
 echo $score

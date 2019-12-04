@@ -37,10 +37,7 @@ fi
 dpipe /usr/lib/ssh/sftp-server = ssh ${user}@${host} sshfs :\"${folder_path}\" olive-share -o slave &
 
 # because the previous call is asyncronous, make sure the remote filesystem is mounted before proceeding
-while [[ $(mount|grep olive) == "" ]]
-do
-	sleep 1
-done
+ssh ${user}@${host} 'while [[ $(mount|grep olive) == "" ]]; do sleep 1; done'
 
 # Olive export
 ssh ${user}@${host} "export DISPLAY=:0 && cd olive-share && olive-editor ${project_name} -e $export_name $export_start $export_end &>/dev/null"
