@@ -73,7 +73,6 @@ class ProjectManager:
         os.remove(list_name)
         for p in range(1, self.parts + 1):
             os.remove(str(p) + ".mp4")
-            pass
 
     def get_job(self, n):
         # when each node has come back asking for a job, we know they all finished the ongoing split job

@@ -9,6 +9,7 @@ fi
 project_name="$(echo "$1"|rev|cut -d'/' -f1|rev)"
 folder_path="$(echo "$1"|rev|cut -d'/' -f2-|rev)"
 
+# Make the path absolute if it isn't 
 if [[ $(echo $folder_path|cut -c1) != "/" ]]
 then
   folder_path=$(realpath $folder_path)
@@ -35,11 +36,16 @@ fi
 # reverse mount the local folder to olive-share on remote host (FS push)
 dpipe /usr/lib/ssh/sftp-server = ssh ${user}@${host} sshfs :\"${folder_path}\" olive-share -o slave &
 
+# because the previous call is asyncronous, make sure the remote filesystem is mounted before proceeding
+while [[ $(mount|grep olive) == "" ]]
+do
+	sleep 1
+done
+
 # Olive export
-ssh ${user}@${host} "export DISPLAY=:0 && cd olive-share && olive-editor ~/olive-share/${project_name} -e $export_name $export_start $export_end &>/dev/null"
+ssh ${user}@${host} "export DISPLAY=:0 && cd olive-share && olive-editor ${project_name} -e $export_name $export_start $export_end &>/dev/null"
 
 # Move output to shared folder and umount the share
 # ssh ${user}@${host} "mv ~/"$export_name".mp4 ~/olive-share"
 
-# TODO: maybe call this in a separate python thread as it might hang
 ssh ${user}@${host} "umount ~/olive-share"
