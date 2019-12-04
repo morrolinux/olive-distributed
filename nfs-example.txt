@@ -1,0 +1,12 @@
+# server SETUP
+sudo systemctl start nfs-server.service
+sudo systemctl restart rpcbind.service
+
+# server ADD share	(world access)
+sudo exportfs *:/path/to/folder/
+
+# client MOUNT
+sudo mount server-ip:/path/to/folder/ ~/olive-share
+
+# server STOP		(stop world access)
+sudo exportfs -u *:/path/to/folder/
