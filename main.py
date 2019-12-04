@@ -60,7 +60,6 @@ class RenderNode:
             self.run_job(j, name, start, end)
 
     def run_job(self, j, name, start, end):
-        job_folder = j.job_path[:j.job_path.rfind("/")]
         self.__job_start_time = time.time()
         self.__job = j
         print(self.address + "\trunning job: ", j.job_path[j.job_path.rfind("/")+1:],
@@ -74,7 +73,7 @@ class RenderNode:
             job_end = " "+str(end)
         if name is not None:
             job_name = " "+str(name)
-        os.system("./render-on-host.sh \"" + job_folder + "\" morro " +
+        os.system("./render-on-host.sh \"" + j.job_path + "\" morro " +
                   str(self.address) + job_name + job_start + job_end)
 
         self.sample_weight = j.job_weight
