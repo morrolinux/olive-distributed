@@ -50,6 +50,7 @@ class ProjectManager:
                 if file.endswith(".ove"):
                     job_path = os.path.join(root, file)
                     self.jobs.append(Job(job_path, self.get_job_complexity(job_path)))
+                    print("adding project:", job_path)
 
     def add(self, project, part=False):
         self.jobs.append(Job(project, self.get_job_complexity(project), split=part))
@@ -75,6 +76,8 @@ class ProjectManager:
             os.remove(str(p) + ".mp4")
 
     def get_job(self, n):
+        abort = Job("abort", -1)
+
         # when each node has come back asking for a job, we know they all finished the ongoing split job
         if n in self.split_nodes:
             self.split_nodes_done = self.split_nodes_done + 1
@@ -85,14 +88,13 @@ class ProjectManager:
 
         if len(self.jobs) <= 0:
             print("PROJECT MANAGER: no more work to do")
-            return Job("abort", -1), None, None, None
+            return abort, None, None, None
 
         max_score = max(node.cpu_score for node in self.render_nodes)
         min_score = min(node.cpu_score for node in self.render_nodes)
         max_weight = max(job.job_weight for job in self.jobs)
         min_weight = min(job.job_weight for job in self.jobs)
 
-        abort = Job("-1", -1)
         fuzzy_job_weight = 0
 
         if max_score != min_score:
@@ -116,7 +118,7 @@ class ProjectManager:
                           worker.address, "ETA:", round(w_eta), "\n",
                           "Refusing to assign a job to", n.address)
                     '''
-                    return Job("abort", -1), None, None, None
+                    return abort, None, None, None
 
         if assigned_job.split:
             self.parts_lock.acquire()
@@ -150,4 +152,4 @@ class ProjectManager:
             return self.split_job, str(self.parts), job_start, job_end
 
         self.jobs.remove(assigned_job)
-        return self.split_job, None, None, None
+        return assigned_job, None, None, None
