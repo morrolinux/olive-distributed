@@ -40,7 +40,6 @@ class RenderNode:
         threading.Thread(target=self.__run).start()
 
     def __run(self):
-        print("node", self.address, "started. Project manager:", self.project_manager)
         while True:
             j, name, start, end = self.project_manager.get_job(self)
             if j.job_path == "abort":
