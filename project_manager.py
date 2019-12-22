@@ -2,36 +2,7 @@ from xml.dom import minidom
 import os
 import math
 import threading
-
-
-class Job:
-    def __init__(self, job_path, job_weight, split=False):
-        self.job_path = job_path
-        self.job_weight = job_weight
-        self.len = job_weight
-        self.split = split
-        self.last_rendered_frame = 0
-
-    def __str__(self):
-        return "" + self.job_path + " : " + str(self.job_weight)
-
-    def __eq__(self, other):
-        return self.job_weight == other.job_weight
-
-    def __lt__(self, other):
-        return self.job_weight < other.job_weight
-
-    def __le__(self, other):
-        return self.job_weight <= other.job_weight
-
-    def __ne__(self, other):
-        return self.job_weight != other.job_weight
-
-    def __gt__(self, other):
-        return self.job_weight > other.job_weight
-
-    def __ge__(self, other):
-        return self.job_weight >= other.job_weight
+from job import Job
 
 
 class ProjectManager:
@@ -43,6 +14,8 @@ class ProjectManager:
         self.split_nodes_done = 0
         self.parts = 0
         self.parts_lock = threading.Lock()
+        for n in self.render_nodes:
+            n.set_manager(self)
 
     def explore(self, folder):
         for root, dirs, files in os.walk(folder):
