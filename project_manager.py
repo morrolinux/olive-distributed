@@ -137,7 +137,6 @@ class ProjectManager:
             self.split_job.last_rendered_frame = job_end
 
             # append the given worker to the list of workers doing a split job; save the split job
-            # TODO: beware of race condition for len(self.split_nodes)
             self.split_nodes.append(n)
             self.parts = self.parts + 1
 
