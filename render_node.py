@@ -62,10 +62,10 @@ class RenderNode:
 
         simulation_wait = (j.job_weight/self.cpu_score)/500
 
-        job_start_time = time.time()
+        self.__job_start_time = time.time()
         self.node_service.run_job(j.job_path, name, start, end, wait=simulation_wait)
-        self.sample_time = time.time() - job_start_time
+        self.sample_time = time.time() - self.__job_start_time
 
         self.sample_weight = j.job_weight
-        self.sample_time = time.time() - job_start_time
+        self.sample_time = time.time() - self.__job_start_time
         self.__job = None
