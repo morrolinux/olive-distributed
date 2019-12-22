@@ -1,6 +1,6 @@
 import threading
 import time
-import os
+import Pyro4
 
 
 class RenderNode:
@@ -13,6 +13,7 @@ class RenderNode:
         self.sample_weight = None
         self.sample_time = None
         self.project_manager = None
+        self.node_service = Pyro4.core.Proxy('PYRO:NodeService@' + self.address + ':9090')
 
     def set_manager(self, manager):
         self.project_manager = manager
@@ -30,10 +31,13 @@ class RenderNode:
         return t
 
     def run_benchmark(self):
-        import random
-        self.cpu_score = random.randrange(1, 10)
-        self.net_score = random.randrange(1, 10)
-        # self.cpu_score = float(os.popen("./bench-host.sh morro " + str(self.address)).read())
+        try:
+            self.cpu_score = self.node_service.run_benchmark()
+        except Pyro4.errors.CommunicationError:
+            print("node", self.address, "is unreachable and won't be used.")
+            self.cpu_score = -1
+            self.net_score = -1
+            return
         print("node", self.address, "\t\tCPU:", self.cpu_score)
 
     def run(self):
@@ -51,22 +55,17 @@ class RenderNode:
             self.run_job(j, name, start, end)
 
     def run_job(self, j, name, start, end):
-        self.__job_start_time = time.time()
         self.__job = j
+
         print(self.address + "\trunning job: ", j.job_path[j.job_path.rfind("/")+1:],
               "\tWeight: ", j.job_weight, "\tETA:", round(self.job_eta()), "s.")
 
-        time.sleep((j.job_weight/self.cpu_score)/100)
-        job_start = job_end = job_name = ""
-        if start is not None:
-            job_start = " "+str(start)
-        if end is not None:
-            job_end = " "+str(end)
-        if name is not None:
-            job_name = " "+str(name)
-        # os.system("./render-on-host.sh \"" + j.job_path + "\" morro " +
-        #           str(self.address) + job_name + job_start + job_end)
+        simulation_wait = (j.job_weight/self.cpu_score)/500
+
+        job_start_time = time.time()
+        self.node_service.run_job(j.job_path, name, start, end, wait=simulation_wait)
+        self.sample_time = time.time() - job_start_time
 
         self.sample_weight = j.job_weight
-        self.sample_time = time.time() - self.__job_start_time
+        self.sample_time = time.time() - job_start_time
         self.__job = None

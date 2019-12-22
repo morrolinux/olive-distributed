@@ -42,6 +42,11 @@ if __name__ == '__main__':
     for b in benchmark_threads:
         b.join()
 
+    # remove unreachable nodes before start
+    for n in render_nodes:
+        if int(n.cpu_score) == -1:
+            render_nodes.remove(n)
+
     # start nodes
     print("\n============ Starting Nodes ===============")
     for n in render_nodes:
