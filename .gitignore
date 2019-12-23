@@ -3,3 +3,4 @@ venv
 nodes.bak
 __pycache__/*
 nodes.txt
+*.pem
