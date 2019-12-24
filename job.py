@@ -26,3 +26,11 @@ class Job:
 
     def __ge__(self, other):
         return self.job_weight >= other.job_weight
+
+    @staticmethod
+    def job_dict_to_class(classname, d):
+        j = Job(d["job_path"], d["job_weight"])
+        j.len = d["len"]
+        j.split = d["split"]
+        j.last_rendered_frame = d["last_rendered_frame"]
+        return j

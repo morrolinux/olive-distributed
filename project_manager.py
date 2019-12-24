@@ -1,10 +1,6 @@
 from xml.dom import minidom
 import os
-import math
-import threading
 from job import Job
-from job_dispatcher import JobDispatcher
-import threading
 
 
 class ProjectManager:
@@ -22,7 +18,8 @@ class ProjectManager:
     def add(self, project, part=False):
         self.jobs.append(Job(project, self.get_job_complexity(project), split=part))
 
-    def get_job_complexity(self, j):
+    @staticmethod
+    def get_job_complexity(j):
         olive_project = minidom.parse(j)
         items = olive_project.getElementsByTagName('clip')
         num_clips = len(items)

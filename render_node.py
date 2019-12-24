@@ -1,8 +1,6 @@
-import threading
 import time
 import Pyro4.core
 import Pyro4.errors
-import socket
 import os
 from Pyro4.util import SerializerBase
 from job import Job
@@ -33,14 +31,7 @@ class RenderNode:
         self.sample_time = None
         self.node_service_name = ('PYRO:JobDispatcher@' + "t480s" + ':9090')
         self.job_dispatcher = self.CertCheckingProxy(self.node_service_name)
-        SerializerBase.register_dict_to_class("job.Job", self.job_dict_to_class)
-
-    def job_dict_to_class(self, classname, d):
-        j = Job(d["job_path"], d["job_weight"])
-        j.len = d["len"]
-        j.split = d["split"]
-        j.last_rendered_frame = d["last_rendered_frame"]
-        return j
+        SerializerBase.register_dict_to_class("job.Job", Job.job_dict_to_class)
 
     def job_eta(self, j=None):
         if self.sample_time is None or self.sample_weight is None:
@@ -73,7 +64,7 @@ class RenderNode:
             self.run_benchmark()
             self.job_dispatcher.join_work(self)
             self.__run()
-            return 
+            return
 
     def __run(self):
         while True:
@@ -107,3 +98,14 @@ class RenderNode:
         self.sample_weight = j.job_weight
         self.sample_time = time.time() - self._job_start_time
         self._job = None
+
+    @staticmethod
+    def node_dict_to_class(classname, d):
+        # print("{deserializer hook, converting to class: %s}" % d)
+        r = RenderNode(d["address"])
+        r.cpu_score = d["cpu_score"]
+        r.net_score = d["net_score"]
+        r._job_start_time = d["_job_start_time"]
+        r.sample_weight = d["sample_weight"]
+        r.sample_time = d["sample_time"]
+        return r

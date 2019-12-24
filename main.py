@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 import argparse
-import threading
 from project_manager import ProjectManager
-from render_node import RenderNode
-import time
 from job_dispatcher import JobDispatcher
 
 parser = argparse.ArgumentParser()
