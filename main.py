@@ -3,6 +3,8 @@ import argparse
 import threading
 from project_manager import ProjectManager
 from render_node import RenderNode
+import time
+from job_dispatcher import JobDispatcher
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--folder", dest='folder', help="folder containing projects folders")
@@ -21,34 +23,14 @@ if __name__ == '__main__':
         print("usage: --folder <folder> | --project <file>")
         exit()
 
-    print("\n=============== Nodes Setup ===============")
-    # instantiate (and benchmark) a new node object for each node found in list
-    render_nodes = []
-    benchmark_threads = []
-    for n in get_render_nodes():
-        render_nodes.append(RenderNode(n))
-        benchmark_threads.append(threading.Thread(target=render_nodes[-1].run_benchmark))
-        benchmark_threads[-1].start()
-
     # initialize the project manager with the render nodes
-    project_manager = ProjectManager(render_nodes)
+    project_manager = ProjectManager()
+
     # and feed it the job(s) to be done
     if args.folder is not None:
         project_manager.explore(args.folder)
     elif args.project is not None:
         project_manager.add(args.project, part=True)
 
-    # wait for benchmark results from all hosts
-    for b in benchmark_threads:
-        b.join()
-
-    # remove unreachable nodes before start
-    for n in render_nodes:
-        if int(n.cpu_score) == -1:
-            render_nodes.remove(n)
-
-    # start nodes
-    print("\n============ Starting Nodes ===============")
-    for n in render_nodes:
-        n.run()
-
+    job_dispatcher = JobDispatcher(project_manager.jobs)
+    job_dispatcher.start()

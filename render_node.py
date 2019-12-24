@@ -1,22 +1,36 @@
 import threading
 import time
-import Pyro4
+import Pyro4.core
+import Pyro4.errors
+import socket
+import os
 
 
 class RenderNode:
-    def __init__(self, address):
-        self.address = address
+    Pyro4.config.SSL = True
+    Pyro4.config.SSL_CACERTS = "ssl/certs/node_cert.pem"  # to make ssl accept the self-signed node cert
+    Pyro4.config.SSL_CLIENTCERT = "ssl/certs/master_cert.pem"
+    Pyro4.config.SSL_CLIENTKEY = "ssl/certs/master_key.pem"
+
+    class CertCheckingProxy(Pyro4.core.Proxy):
+        def verify_cert(self, cert):
+            if not cert:
+                raise Pyro4.errors.CommunicationError("cert missing")
+
+        def _pyroValidateHandshake(self, response):
+            cert = self._pyroConnection.getpeercert()
+            self.verify_cert(cert)
+
+    def __init__(self):
+        self.address = socket.gethostname()
         self.cpu_score = 0
         self.net_score = 0
         self.__job_start_time = None
         self.__job = None
         self.sample_weight = None
         self.sample_time = None
-        self.project_manager = None
-        self.node_service = Pyro4.core.Proxy('PYRO:NodeService@' + self.address + ':9090')
-
-    def set_manager(self, manager):
-        self.project_manager = manager
+        self.node_service_name = ('PYRO:JobDispatcher@' + "t480s" + ':9090')
+        self.job_dispatcher = self.CertCheckingProxy(self.node_service_name)
 
     def job_eta(self, j=None):
         if self.sample_time is None or self.sample_weight is None:
@@ -31,21 +45,20 @@ class RenderNode:
         return t
 
     def run_benchmark(self):
-        try:
-            self.cpu_score = self.node_service.run_benchmark()
-        except Pyro4.errors.CommunicationError:
-            print("node", self.address, "is unreachable and won't be used.")
-            self.cpu_score = -1
-            self.net_score = -1
-            return
+        import random
+        self.cpu_score = random.randrange(1, 10)
+        self.net_score = random.randrange(1, 10)
+        # self.cpu_score = float(os.popen("./bench-host.sh morro " + str(self.address)).read())
         print("node", self.address, "\t\tCPU:", self.cpu_score)
 
     def run(self):
-        threading.Thread(target=self.__run).start()
+        print(self.job_dispatcher.test())
+        # self.__run()
+        # threading.Thread(target=self.__run).start()
 
     def __run(self):
         while True:
-            j, name, start, end = self.project_manager.get_job(self)
+            j, name, start, end = self.job_dispatcher.get_job(self)
             if j.job_path == "abort":
                 print(self.address, "\tterminating...")
                 return
@@ -55,17 +68,27 @@ class RenderNode:
             self.run_job(j, name, start, end)
 
     def run_job(self, j, name, start, end):
+        self.__job_start_time = time.time()
         self.__job = j
-
         print(self.address + "\trunning job: ", j.job_path[j.job_path.rfind("/")+1:],
               "\tWeight: ", j.job_weight, "\tETA:", round(self.job_eta()), "s.")
 
-        simulation_wait = (j.job_weight/self.cpu_score)/500
-
-        self.__job_start_time = time.time()
-        self.node_service.run_job(j.job_path, name, start, end, wait=simulation_wait)
-        self.sample_time = time.time() - self.__job_start_time
+        time.sleep((j.job_weight/self.cpu_score)/100)
+        job_start = job_end = job_name = ""
+        if start is not None:
+            job_start = " "+str(start)
+        if end is not None:
+            job_end = " "+str(end)
+        if name is not None:
+            job_name = " "+str(name)
+        # os.system("./render-on-host.sh \"" + j.job_path + "\" morro " +
+        #           str(self.address) + job_name + job_start + job_end)
 
         self.sample_weight = j.job_weight
         self.sample_time = time.time() - self.__job_start_time
         self.__job = None
+
+
+if __name__ == '__main__':
+    node = RenderNode()
+    node.run()
