@@ -4,6 +4,8 @@ from job import Job
 import threading
 from render_node import RenderNode
 import os
+import math
+from Pyro4.util import SerializerBase
 
 
 class JobDispatcher:
@@ -30,6 +32,17 @@ class JobDispatcher:
         self.parts_lock = threading.Lock()
         self.render_nodes = []
         self.__test_counter = 0
+        SerializerBase.register_dict_to_class("render_node.RenderNode", self.node_dict_to_class)
+
+    def node_dict_to_class(self, classname, d):
+        # print("{deserializer hook, converting to class: %s}" % d)
+        r = RenderNode(d["address"])
+        r.cpu_score = d["cpu_score"]
+        r.net_score = d["net_score"]
+        r._job_start_time = d["_job_start_time"]
+        r.sample_weight = d["sample_weight"]
+        r.sample_time = d["sample_time"]
+        return r
 
     @Pyro4.expose
     def test(self):
@@ -77,6 +90,9 @@ class JobDispatcher:
         max_weight = max(job.job_weight for job in self.jobs)
         min_weight = min(job.job_weight for job in self.jobs)
         fuzzy_job_weight = 0
+
+        print("max_score:", max_score, "min_score:", min_score, "max_weight", max_weight, "min_weight", min_weight)
+        print(n.cpu_score, n.address, n.net_score)
 
         if max_score != min_score:
             fuzzy_job_weight = min_weight + ((max_weight - min_weight) / (max_score - min_score)) * (n.cpu_score - min_score)

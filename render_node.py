@@ -4,6 +4,8 @@ import Pyro4.core
 import Pyro4.errors
 import socket
 import os
+from Pyro4.util import SerializerBase
+from job import Job
 
 
 class RenderNode:
@@ -21,16 +23,24 @@ class RenderNode:
             cert = self._pyroConnection.getpeercert()
             self.verify_cert(cert)
 
-    def __init__(self):
-        self.address = socket.gethostname()
+    def __init__(self, address):
+        self.address = address
         self.cpu_score = 0
         self.net_score = 0
-        self.__job_start_time = None
-        self.__job = None
+        self._job_start_time = None
+        self._job = None
         self.sample_weight = None
         self.sample_time = None
         self.node_service_name = ('PYRO:JobDispatcher@' + "t480s" + ':9090')
         self.job_dispatcher = self.CertCheckingProxy(self.node_service_name)
+        SerializerBase.register_dict_to_class("job.Job", self.job_dict_to_class)
+
+    def job_dict_to_class(self, classname, d):
+        j = Job(d["job_path"], d["job_weight"])
+        j.len = d["len"]
+        j.split = d["split"]
+        j.last_rendered_frame = d["last_rendered_frame"]
+        return j
 
     def job_eta(self, j=None):
         if self.sample_time is None or self.sample_weight is None:
@@ -38,8 +48,8 @@ class RenderNode:
 
         if j is not None:
             t = (j.job_weight * self.sample_time) / self.sample_weight
-        elif self.__job is not None:
-            t = self.job_eta(self.__job) - (time.time() - self.__job_start_time)
+        elif self._job is not None:
+            t = self.job_eta(self._job) - (time.time() - self._job_start_time)
         else:
             t = 0
         return t
@@ -52,13 +62,23 @@ class RenderNode:
         print("node", self.address, "\t\tCPU:", self.cpu_score)
 
     def run(self):
-        print(self.job_dispatcher.test())
-        # self.__run()
-        # threading.Thread(target=self.__run).start()
+        while True:
+            try:
+                print(self.job_dispatcher.test())
+            except Pyro4.errors.CommunicationError:
+                print("Can't connect to dispatcher, retrying...")
+                time.sleep(1)
+                continue
+
+            self.run_benchmark()
+            self.job_dispatcher.join_work(self)
+            self.__run()
+            return 
 
     def __run(self):
         while True:
             j, name, start, end = self.job_dispatcher.get_job(self)
+            print("got job:", j)
             if j.job_path == "abort":
                 print(self.address, "\tterminating...")
                 return
@@ -68,8 +88,8 @@ class RenderNode:
             self.run_job(j, name, start, end)
 
     def run_job(self, j, name, start, end):
-        self.__job_start_time = time.time()
-        self.__job = j
+        self._job_start_time = time.time()
+        self._job = j
         print(self.address + "\trunning job: ", j.job_path[j.job_path.rfind("/")+1:],
               "\tWeight: ", j.job_weight, "\tETA:", round(self.job_eta()), "s.")
 
@@ -85,10 +105,5 @@ class RenderNode:
         #           str(self.address) + job_name + job_start + job_end)
 
         self.sample_weight = j.job_weight
-        self.sample_time = time.time() - self.__job_start_time
-        self.__job = None
-
-
-if __name__ == '__main__':
-    node = RenderNode()
-    node.run()
+        self.sample_time = time.time() - self._job_start_time
+        self._job = None
