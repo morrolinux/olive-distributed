@@ -1,4 +1,3 @@
-from __future__ import print_function
 import Pyro4.core
 import socket
 
@@ -41,8 +40,7 @@ class CertValidatingDaemon(Pyro4.core.Daemon):
         return super(CertValidatingDaemon, self).validateHandshake(conn, data)
 
 
-# host = socket.gethostname()
-d = CertValidatingDaemon(host="localhost", port=9090)
+d = CertValidatingDaemon(host=socket.gethostname(), port=9090)
 uri = d.register(Safe, "NodeService")
 
 print("server uri:", uri)

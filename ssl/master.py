@@ -1,10 +1,6 @@
-from __future__ import print_function
 import sys
 import Pyro4.core
 import Pyro4.errors
-
-if sys.version_info < (3, 0):
-    input = raw_input
 
 
 Pyro4.config.SSL = True
@@ -41,7 +37,7 @@ class CertCheckingProxy(Pyro4.core.Proxy):
         verify_cert(cert)
 
 
-node_service_name = ('PYRO:NodeService@' + "localhost" + ':9090')
+node_service_name = ('PYRO:NodeService@' + "t480s" + ':9090')
 # node_service = Pyro4.core.Proxy(node_service_name)
 print("node_service: ", node_service_name)
 
