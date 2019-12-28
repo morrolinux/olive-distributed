@@ -7,6 +7,7 @@ from job import Job
 from ssl_utils import CertCheckingProxy
 import socket
 from pathlib import Path
+import os
 
 
 class WorkerNode:
@@ -91,11 +92,13 @@ class WorkerNode:
         if name is not None:
             job_name = str(name)
 
-        # olive_export = subprocess.run(['olive-editor', j.job_path, '-e', job_name, job_start, job_end],
-        #                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        os.chdir(self.MOUNTPOINT_DEFAULT)
+        project_path = j.job_path[j.job_path.rfind("/") + 1:]
+        olive_export = subprocess.run(['olive-editor', project_path, '-e', job_name, job_start, job_end],
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         # dummy export jobs:
-        olive_export = subprocess.run(['true'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # success
+        # olive_export = subprocess.run(['true'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # success
         # olive_export = subprocess.run(['false'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)   # failure
 
         if olive_export.returncode == 0:
