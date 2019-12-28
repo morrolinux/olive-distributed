@@ -6,6 +6,7 @@ from Pyro4.util import SerializerBase
 from job import Job
 from ssl_utils import CertCheckingProxy
 import socket
+from pathlib import Path
 
 
 class RenderNode:
@@ -15,6 +16,8 @@ class RenderNode:
     Pyro4.config.SSL_CLIENTKEY = "ssl/certs/"+socket.gethostname()+".key"
 
     def __init__(self, address):
+        self.MASTER_ADDRESS = "t480s"
+        self.MOUNTPOINT_DEFAULT = str(Path.home())+'/olive-share'
         self.address = address
         self.cpu_score = 0
         self.net_score = 0
@@ -22,8 +25,8 @@ class RenderNode:
         self._job = None
         self.sample_weight = None
         self.sample_time = None
-        self.node_service_name = ('PYRO:JobDispatcher@' + "t480s" + ':9090')
-        self.job_dispatcher = CertCheckingProxy(self.node_service_name)
+        self.job_dispatcher = CertCheckingProxy('PYRO:JobDispatcher@' + self.MASTER_ADDRESS + ':9090')
+        self.nfs_mounter = CertCheckingProxy('PYRO:NfsMounter@' + 'localhost' + ':9092')
         SerializerBase.register_dict_to_class("job.Job", Job.job_dict_to_class)
 
     def job_eta(self, j=None):
@@ -69,6 +72,10 @@ class RenderNode:
             if j.job_path == "retry":
                 time.sleep(j.job_weight)
                 continue
+            # mount the NFS share before starting
+            if self.nfs_mounter.mount(j.job_path, self.MASTER_ADDRESS, self.MOUNTPOINT_DEFAULT) != 0:
+                self.job_dispatcher.report(self, j, -1)
+                return
             self.run_job(j, name, start, end)
 
     def run_job(self, j, name, start, end):
@@ -96,6 +103,7 @@ class RenderNode:
         else:
             print("Error exporting", j.job_path)
 
+        self.nfs_mounter.umount(self.MOUNTPOINT_DEFAULT)
         self.job_dispatcher.report(self, j, olive_export.returncode)
 
         self.sample_weight = j.job_weight

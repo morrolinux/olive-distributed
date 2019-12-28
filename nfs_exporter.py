@@ -1,6 +1,5 @@
 import Pyro4.core
 from ssl_utils import CertValidatingDaemon
-import socket
 import subprocess
 
 
@@ -42,12 +41,23 @@ class NfsExporter:
             print("There was an error unexporting", path, "- media might still be accessible.")
 
     def start(self):
+        if subprocess.run(['systemctl', 'start', "nfs-server.service"], stdout=subprocess.PIPE).returncode != 0:
+            print("There was an error starting nfs-server - make sure NFSv4 is installed.")
+
+        if subprocess.run(['systemctl', 'restart', "rpcbind.service"], stdout=subprocess.PIPE).returncode != 0:
+            print("There was an error restarting rpcbind - this might be an issue.")
+
         d = CertValidatingDaemon(port=9091)
         uri = d.register(self, "NfsExporter")
         print("NFS Exporter ready. URI:", uri)
         d.requestLoop()
 
+    def stop(self):
+        if subprocess.run(['systemctl', 'stop', "nfs-server.service"], stdout=subprocess.PIPE).returncode != 0:
+            print("There was an error stopping nfs-server.")
+
 
 if __name__ == '__main__':
     nfsExporter = NfsExporter()
     nfsExporter.start()
+    nfsExporter.stop()
