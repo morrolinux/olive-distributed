@@ -1,7 +1,7 @@
 import time
 import Pyro4.core
 import Pyro4.errors
-import os
+import subprocess
 from Pyro4.util import SerializerBase
 from job import Job
 
@@ -49,7 +49,7 @@ class RenderNode:
         import random
         self.cpu_score = random.randrange(1, 10)
         self.net_score = random.randrange(1, 10)
-        # self.cpu_score = float(os.popen("./bench-host.sh morro " + str(self.address)).read())
+        self.cpu_score = float(subprocess.run(['./bench-host.sh'], stdout=subprocess.PIPE).stdout)
         print("node", self.address, "\t\tCPU:", self.cpu_score)
 
     def run(self):
@@ -81,8 +81,6 @@ class RenderNode:
     def run_job(self, j, name, start, end):
         self._job_start_time = time.time()
         self._job = j
-        print(self.address + "\trunning job: ", j.job_path[j.job_path.rfind("/")+1:],
-              "\tWeight: ", j.job_weight, "\tETA:", round(self.job_eta()), "s.")
 
         time.sleep((j.job_weight/self.cpu_score)/100)
         job_start = job_end = job_name = ""
@@ -92,8 +90,13 @@ class RenderNode:
             job_end = " "+str(end)
         if name is not None:
             job_name = " "+str(name)
-        # os.system("./render-on-host.sh \"" + j.job_path + "\" morro " +
-        #           str(self.address) + job_name + job_start + job_end)
+
+        olive_export = subprocess.run(['olive-editor', j.job_path, '-e', job_name, job_start, job_end],
+                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if olive_export.returncode == 0:
+            print("Exported successfully:", j.job_path, ":", job_name)
+        else:
+            print("Error exporting", j.job_path)
 
         self.sample_weight = j.job_weight
         self.sample_time = time.time() - self._job_start_time

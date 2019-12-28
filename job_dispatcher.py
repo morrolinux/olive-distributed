@@ -92,6 +92,7 @@ class JobDispatcher:
         # Slow tail fix:
         # if there are more nodes than jobs, check weather a faster node is about to finish its work before assignment
         # if so, don't assign the current job to the current (slower) node and terminate it.
+        # TODO: with Pyro, workers in self.render nodes are not updated from remote and cannot provide useful ETA
         if len(self.jobs) < len(self.render_nodes) and not assigned_job.split:
             for worker in self.render_nodes:
                 w_eta = worker.job_eta() + worker.job_eta(assigned_job)
@@ -131,11 +132,13 @@ class JobDispatcher:
             self.parts_lock.release()
             return self.split_job, str(self.split_job_parts), job_start, job_end
 
+        print(n.address + "\trunning job: ", assigned_job.job_path[assigned_job.job_path.rfind("/")+1:],
+              "\tWeight: ", assigned_job.job_weight)
         self.jobs.remove(assigned_job)
         return assigned_job, None, None, None
 
     def start(self):
         d = self.CertValidatingDaemon(host=socket.gethostname(), port=9090)
         test_uri = d.register(self, "JobDispatcher")
-        print("test uri:", test_uri)
+        print("Job dispatcher ready. URI:", test_uri)
         d.requestLoop()
