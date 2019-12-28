@@ -58,6 +58,16 @@ class JobDispatcher:
             os.remove(str(p) + ".mp4")
 
     @Pyro4.expose
+    def report(self, node, job, exit_status):
+        print("NODE", node.address, "completed job", job.job_path, "with status", exit_status)
+        # If the export fails, re-insert it in the job queue
+        # TODO: handle export range recovery for part jobs
+        if exit_status != 0:
+            self.jobs.append(job)
+        # In any case, always remove the share after a worker is done
+        self.nfs_exporter.unexport(job.job_path, to=node.address)
+
+    @Pyro4.expose
     def get_job(self, n):
         abort = Job("abort", -1)
 
@@ -130,7 +140,16 @@ class JobDispatcher:
                 # TODO: probably don't need to save self.split and remove it from the queue, but instead
                 #  keep it until termination condition (at the beginning of this procedure) is reached.
             self.parts_lock.release()
+
+            # Export the folder via NFS so that the worker node can access it
+            # TODO: decide when to unexport after job finish
+            self.nfs_exporter.export(self.split_job.job_path, to=n.address)
+            # Return the job to the worker node
             return self.split_job, str(self.split_job_parts), job_start, job_end
+
+        # Export the folder via NFS so that the worker node can access it
+        # TODO: decide when to unexport after job finish
+        self.nfs_exporter.export(assigned_job.job_path, to=n.address)
 
         print(n.address + "\trunning job: ", assigned_job.job_path[assigned_job.job_path.rfind("/")+1:],
               "\tWeight: ", assigned_job.job_weight)

@@ -1,6 +1,7 @@
 import Pyro4.core
 from ssl_utils import CertValidatingDaemon
 import socket
+import subprocess
 
 
 class NfsExporter:
@@ -14,13 +15,31 @@ class NfsExporter:
     def test(self):
         return "ok"
 
+    @staticmethod
+    def __nfs4_syntax(path, to):
+        # get the enclosing folder of the project
+        if path.find(".ove") > 0:
+            path = path[:path.rfind("/")]
+        # apply destination
+        if to is None:
+            path = "*:"+path
+        else:
+            path = to+":"+path
+        return path
+
     @Pyro4.expose
     def export(self, path, to=None):
+        path = self.__nfs4_syntax(path, to)
         print("exporting", path)
+        if subprocess.run(['exportfs', path, '-o', 'rw'], stdout=subprocess.PIPE).returncode != 0:
+            print("There was an error exporting", path, "- Worker node might not be able to access media.")
 
     @Pyro4.expose
     def unexport(self, path, to=None):
+        path = self.__nfs4_syntax(path, to)
         print("unexporting", path)
+        if subprocess.run(['exportfs', '-u', path], stdout=subprocess.PIPE).returncode != 0:
+            print("There was an error unexporting", path, "- media might still be accessible.")
 
     def start(self):
         d = CertValidatingDaemon(port=9091)

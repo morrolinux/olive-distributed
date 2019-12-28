@@ -5,13 +5,14 @@ import subprocess
 from Pyro4.util import SerializerBase
 from job import Job
 from ssl_utils import CertCheckingProxy
+import socket
 
 
 class RenderNode:
     Pyro4.config.SSL = True
-    Pyro4.config.SSL_CACERTS = "ssl/certs/node_cert.pem"  # to make ssl accept the self-signed node cert
-    Pyro4.config.SSL_CLIENTCERT = "ssl/certs/master_cert.pem"
-    Pyro4.config.SSL_CLIENTKEY = "ssl/certs/master_key.pem"
+    Pyro4.config.SSL_CACERTS = "ssl/certs/rootCA.crt"  # to make ssl accept the self-signed node cert
+    Pyro4.config.SSL_CLIENTCERT = "ssl/certs/"+socket.gethostname()+".crt"
+    Pyro4.config.SSL_CLIENTKEY = "ssl/certs/"+socket.gethostname()+".key"
 
     def __init__(self, address):
         self.address = address
@@ -41,7 +42,7 @@ class RenderNode:
         import random
         self.cpu_score = random.randrange(1, 10)
         self.net_score = random.randrange(1, 10)
-        self.cpu_score = float(subprocess.run(['./bench-host.sh'], stdout=subprocess.PIPE).stdout)
+        # self.cpu_score = float(subprocess.run(['./bench-host.sh'], stdout=subprocess.PIPE).stdout)
         print("node", self.address, "\t\tCPU:", self.cpu_score)
 
     def run(self):
@@ -77,18 +78,25 @@ class RenderNode:
         time.sleep((j.job_weight/self.cpu_score)/100)
         job_start = job_end = job_name = ""
         if start is not None:
-            job_start = " "+str(start)
+            job_start = str(start)
         if end is not None:
-            job_end = " "+str(end)
+            job_end = str(end)
         if name is not None:
-            job_name = " "+str(name)
+            job_name = str(name)
 
-        olive_export = subprocess.run(['olive-editor', j.job_path, '-e', job_name, job_start, job_end],
-                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # olive_export = subprocess.run(['olive-editor', j.job_path, '-e', job_name, job_start, job_end],
+        #                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        # dummy export jobs:
+        olive_export = subprocess.run(['true'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # success
+        # olive_export = subprocess.run(['false'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)   # failure
+
         if olive_export.returncode == 0:
             print("Exported successfully:", j.job_path, ":", job_name)
         else:
             print("Error exporting", j.job_path)
+
+        self.job_dispatcher.report(self, j, olive_export.returncode)
 
         self.sample_weight = j.job_weight
         self.sample_time = time.time() - self._job_start_time
