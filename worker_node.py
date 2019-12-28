@@ -9,7 +9,7 @@ import socket
 from pathlib import Path
 
 
-class RenderNode:
+class WorkerNode:
     Pyro4.config.SSL = True
     Pyro4.config.SSL_CACERTS = "ssl/certs/rootCA.crt"  # to make ssl accept the self-signed node cert
     Pyro4.config.SSL_CLIENTCERT = "ssl/certs/"+socket.gethostname()+".crt"
@@ -113,7 +113,7 @@ class RenderNode:
     @staticmethod
     def node_dict_to_class(classname, d):
         # print("{deserializer hook, converting to class: %s}" % d)
-        r = RenderNode(d["address"])
+        r = WorkerNode(d["address"])
         r.cpu_score = d["cpu_score"]
         r.net_score = d["net_score"]
         r._job_start_time = d["_job_start_time"]

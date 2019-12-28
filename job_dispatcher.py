@@ -2,7 +2,7 @@ import Pyro4.core
 import socket
 from job import Job
 import threading
-from render_node import RenderNode
+from worker_node import WorkerNode
 import os
 import math
 from Pyro4.util import SerializerBase
@@ -31,7 +31,7 @@ class JobDispatcher:
         self.parts_lock = threading.Lock()
         self.render_nodes = []
         self.__test_counter = 0
-        SerializerBase.register_dict_to_class("render_node.RenderNode", RenderNode.node_dict_to_class)
+        SerializerBase.register_dict_to_class("worker_node.WorkerNode", WorkerNode.node_dict_to_class)
         self.nfs_exporter = CertCheckingProxy('PYRO:NfsExporter@localhost:9091')
 
     @Pyro4.expose
