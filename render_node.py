@@ -4,6 +4,7 @@ import Pyro4.errors
 import subprocess
 from Pyro4.util import SerializerBase
 from job import Job
+from ssl_utils import CertCheckingProxy
 
 
 class RenderNode:
@@ -11,15 +12,6 @@ class RenderNode:
     Pyro4.config.SSL_CACERTS = "ssl/certs/node_cert.pem"  # to make ssl accept the self-signed node cert
     Pyro4.config.SSL_CLIENTCERT = "ssl/certs/master_cert.pem"
     Pyro4.config.SSL_CLIENTKEY = "ssl/certs/master_key.pem"
-
-    class CertCheckingProxy(Pyro4.core.Proxy):
-        def verify_cert(self, cert):
-            if not cert:
-                raise Pyro4.errors.CommunicationError("cert missing")
-
-        def _pyroValidateHandshake(self, response):
-            cert = self._pyroConnection.getpeercert()
-            self.verify_cert(cert)
 
     def __init__(self, address):
         self.address = address
@@ -30,7 +22,7 @@ class RenderNode:
         self.sample_weight = None
         self.sample_time = None
         self.node_service_name = ('PYRO:JobDispatcher@' + "t480s" + ':9090')
-        self.job_dispatcher = self.CertCheckingProxy(self.node_service_name)
+        self.job_dispatcher = CertCheckingProxy(self.node_service_name)
         SerializerBase.register_dict_to_class("job.Job", Job.job_dict_to_class)
 
     def job_eta(self, j=None):

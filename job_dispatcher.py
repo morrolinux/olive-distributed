@@ -6,21 +6,20 @@ from render_node import RenderNode
 import os
 import math
 from Pyro4.util import SerializerBase
+from ssl_utils import CertCheckingProxy
+from ssl_utils import CertValidatingDaemon
 
 
 class JobDispatcher:
     Pyro4.config.SSL = True
     Pyro4.config.SSL_REQUIRECLIENTCERT = True  # 2-way ssl
-    Pyro4.config.SSL_SERVERCERT = "ssl/certs/node_cert.pem"
-    Pyro4.config.SSL_SERVERKEY = "ssl/certs/node_key.pem"
-    Pyro4.config.SSL_CACERTS = "ssl/certs/master_cert.pem"  # to make ssl accept the self-signed master cert
+    Pyro4.config.SSL_SERVERCERT = "ssl/certs/"+socket.gethostname()+".crt"
+    Pyro4.config.SSL_SERVERKEY = "ssl/certs/"+socket.gethostname()+".key"
+    Pyro4.config.SSL_CACERTS = "ssl/certs/rootCA.crt"  # to make ssl accept the self-signed master cert
 
-    class CertValidatingDaemon(Pyro4.core.Daemon):
-        def validateHandshake(self, conn, data):
-            cert = conn.getpeercert()
-            if not cert:
-                raise Pyro4.errors.CommunicationError("node cert missing")
-            return super(JobDispatcher.CertValidatingDaemon, self).validateHandshake(conn, data)
+    # For using NFS mounter as a client
+    Pyro4.config.SSL_CLIENTCERT = Pyro4.config.SSL_SERVERCERT
+    Pyro4.config.SSL_CLIENTKEY = Pyro4.config.SSL_SERVERKEY
 
     def __init__(self, jobs):
         self.jobs = jobs
@@ -33,6 +32,7 @@ class JobDispatcher:
         self.render_nodes = []
         self.__test_counter = 0
         SerializerBase.register_dict_to_class("render_node.RenderNode", RenderNode.node_dict_to_class)
+        self.nfs_exporter = CertCheckingProxy('PYRO:NfsExporter@localhost:9091')
 
     @Pyro4.expose
     def test(self):
@@ -138,7 +138,14 @@ class JobDispatcher:
         return assigned_job, None, None, None
 
     def start(self):
-        d = self.CertValidatingDaemon(host=socket.gethostname(), port=9090)
+        try:
+            self.nfs_exporter.test()
+        except Pyro4.errors.CommunicationError:
+            print("Can't connect to local NFS exporter service, make sure it's running.")
+            return
+
+        d = CertValidatingDaemon(host=socket.gethostname(), port=9090)
         test_uri = d.register(self, "JobDispatcher")
         print("Job dispatcher ready. URI:", test_uri)
         d.requestLoop()
+
