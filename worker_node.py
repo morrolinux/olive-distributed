@@ -46,15 +46,15 @@ class WorkerNode:
         import random
         self.cpu_score = random.randrange(1, 10)
         self.net_score = random.randrange(1, 10)
-        # self.cpu_score = float(subprocess.run(['./bench-host.sh'], stdout=subprocess.PIPE).stdout)
+        self.cpu_score = float(subprocess.run(['bench/bench-host.sh'], stdout=subprocess.PIPE).stdout)
         print("node", self.address, "\t\tCPU:", self.cpu_score)
 
     def run(self):
         while True:
             try:
                 print(self.job_dispatcher.test())
-            except Pyro4.errors.CommunicationError:
-                print("Can't connect to dispatcher, retrying...")
+            except Pyro4.errors.CommunicationError as e:
+                print(e, "\nCan't connect to dispatcher, retrying...")
                 time.sleep(1)
                 continue
 
@@ -83,7 +83,6 @@ class WorkerNode:
         self._job_start_time = time.time()
         self._job = j
 
-        time.sleep((j.job_weight/self.cpu_score)/100)
         job_start = job_end = job_name = ""
         if start is not None:
             job_start = str(start)
@@ -99,6 +98,7 @@ class WorkerNode:
                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         os.chdir(initial_folder)
         # dummy export jobs:
+        # time.sleep((j.job_weight/self.cpu_score)/100)
         # olive_export = subprocess.run(['true'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # success
         # olive_export = subprocess.run(['false'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)   # failure
 

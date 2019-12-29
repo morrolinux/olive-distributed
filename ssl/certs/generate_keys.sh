@@ -15,7 +15,7 @@ then
 	make rootCA.crt
 	
 	# Generate your local certificate needed for NFS Exporter
-	make DOMAIN=localhost
+	make DOMAIN=localhost NAME=$(echo -n $(hostname))_local
 	
 	# Generate your network-wide certificate
 	make DOMAIN=$fqn
