@@ -1,5 +1,7 @@
+# Deliberately customized from: https://gist.github.com/xenogenesi/1b2137f769aa80b6c99d573071f5d086
 
 DOMAIN ?= mydomain.com
+NAME ?= $(DOMAIN)
 
 COUNTRY := IT
 STATE := IT
@@ -16,7 +18,7 @@ COMPANY := Evil Corp.
 # import rootCA.crt to the client (chrome)
 # upload somedomain.dev.crt   and   somedomain.dev.key   to the host
 
-all: $(DOMAIN).csr $(DOMAIN).crt
+all: $(NAME).csr $(NAME).crt
 
 
 rootCA.key:
@@ -26,36 +28,36 @@ rootCA.key:
 rootCA.crt: rootCA.key
 	echo -ne "$(COUNTRY)\n$(STATE)\n\n$(COMPANY)\n\n\n\n" | openssl req -x509 -new -nodes -key rootCA.key -sha256 -days 1024 -out $@
 
-$(DOMAIN).key:
-	openssl genrsa -out $@ 2048
+$(NAME).key:
+	openssl genrsa -out $(NAME).key 2048
 
-$(DOMAIN).conf:
-	sh mkconf.sh $(DOMAIN) >$@
+$(NAME).conf:
+	sh mkconf.sh $(NAME) > $(NAME).conf
 
-$(DOMAIN).csr: $(DOMAIN).key $(DOMAIN).conf
-	openssl req -new -sha256 -key $(DOMAIN).key -subj "/C=$(COUNTRY)/ST=$(STATE)/O=$(COMPANY)/CN=$(DOMAIN)" \
+$(NAME).csr: $(NAME).key $(NAME).conf
+	openssl req -new -sha256 -key $(NAME).key -subj "/C=$(COUNTRY)/ST=$(STATE)/O=$(COMPANY)/CN=$(DOMAIN)" \
 		-reqexts SAN \
-		-config $(DOMAIN).conf \
-		-out $@
+		-config $(NAME).conf \
+		-out $(NAME).csr
 
 # verify .csr content
 .PHONY: verify-csr
 verify-csr:
-	openssl req  -in $(DOMAIN).csr -noout -text
+	openssl req  -in $(NAME).csr -noout -text
 
-$(DOMAIN).san.conf:
+$(NAME).san.conf:
 	sh mksan.sh $(DOMAIN) $(COUNTRY) $(STATE) "$(COMPANY)" >$@
 
-$(DOMAIN).crt: rootCA.key rootCA.crt $(DOMAIN).csr $(DOMAIN).san.conf
-	openssl x509 -req -in $(DOMAIN).csr -CA ./rootCA.crt -CAkey ./rootCA.key \
+$(NAME).crt: rootCA.key rootCA.crt $(NAME).csr $(NAME).san.conf
+	openssl x509 -req -in $(NAME).csr -CA ./rootCA.crt -CAkey ./rootCA.key \
 		-CAcreateserial -out $@ -days 500 -sha256 \
-		-extfile $(DOMAIN).san.conf -extensions req_ext
+		-extfile $(NAME).san.conf -extensions req_ext
 
 # verify the certificate
 .PHONY: verify-crt
 verify-crt:
-	openssl x509 -in $(DOMAIN).crt -text -noout
+	openssl x509 -in $(NAME).crt -text -noout
 
 .PHONY: clean
 clean:
-	-rm -f $(DOMAIN).key $(DOMAIN).csr $(DOMAIN).conf $(DOMAIN).san.conf $(DOMAIN).crt
+	-rm -f $(NAME).key $(NAME).csr $(NAME).conf $(NAME).san.conf $(NAME).crt

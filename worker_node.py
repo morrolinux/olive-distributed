@@ -6,7 +6,6 @@ from Pyro4.util import SerializerBase
 from job import Job
 from ssl_utils import CertCheckingProxy
 from ssl_utils import LOCAL_HOSTNAME
-import socket
 from pathlib import Path
 import os
 
@@ -14,8 +13,8 @@ import os
 class WorkerNode:
     Pyro4.config.SSL = True
     Pyro4.config.SSL_CACERTS = "ssl/certs/rootCA.crt"  # to make ssl accept the self-signed node cert
-    Pyro4.config.SSL_CLIENTCERT = "ssl/certs/"+LOCAL_HOSTNAME+".crt"
-    Pyro4.config.SSL_CLIENTKEY = "ssl/certs/"+LOCAL_HOSTNAME+".key"
+    Pyro4.config.SSL_CLIENTCERT = "ssl/certs/" + LOCAL_HOSTNAME + ".crt"
+    Pyro4.config.SSL_CLIENTKEY = "ssl/certs/" + LOCAL_HOSTNAME + ".key"
 
     def __init__(self, address):
         self.MASTER_ADDRESS = "t480s"
