@@ -10,3 +10,4 @@ ssl/certs/*.crt
 ssl/certs/*.csr
 ssl/certs/*.srl
 ssl/certs/whoismaster
+bench/sample.ove.mp4
