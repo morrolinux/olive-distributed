@@ -77,6 +77,7 @@ class JobDispatcher:
         if self.split_job_finished() and self.all_split_workers_done():
             self.merge_parts(self.split_job.job_path[self.split_job.job_path.rfind("/") + 1:])
             print("Export merged. Finished!!!")
+            exit(0)
 
     def split_job_finished(self):
         if self.split_job is None:
