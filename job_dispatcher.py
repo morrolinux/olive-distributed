@@ -14,13 +14,15 @@ from ssl_utils import LOCAL_HOSTNAME
 class JobDispatcher:
     Pyro4.config.SSL = True
     Pyro4.config.SSL_REQUIRECLIENTCERT = True  # 2-way ssl
-    Pyro4.config.SSL_SERVERCERT = "ssl/certs/"+LOCAL_HOSTNAME+".crt"
-    Pyro4.config.SSL_SERVERKEY = "ssl/certs/"+LOCAL_HOSTNAME+".key"
+    Pyro4.config.SSL_SERVERCERT = "ssl/certs/" + LOCAL_HOSTNAME + ".crt"
+    Pyro4.config.SSL_SERVERKEY = "ssl/certs/" + LOCAL_HOSTNAME + ".key"
     Pyro4.config.SSL_CACERTS = "ssl/certs/rootCA.crt"  # to make ssl accept the self-signed master cert
 
     # For using NFS mounter as a client
     Pyro4.config.SSL_CLIENTCERT = Pyro4.config.SSL_SERVERCERT
     Pyro4.config.SSL_CLIENTKEY = Pyro4.config.SSL_SERVERKEY
+
+    print(Pyro4.config.SSL_CLIENTCERT)
 
     def __init__(self, jobs):
         self.jobs = jobs
@@ -160,8 +162,8 @@ class JobDispatcher:
     def start(self):
         try:
             self.nfs_exporter.test()
-        except Pyro4.errors.CommunicationError:
-            print("Can't connect to local NFS exporter service, make sure it's running.")
+        except Pyro4.errors.CommunicationError as e:
+            print("Can't connect to local NFS exporter service, make sure it's running.\n", e)
             return
 
         d = CertValidatingDaemon(host=LOCAL_HOSTNAME, port=9090)

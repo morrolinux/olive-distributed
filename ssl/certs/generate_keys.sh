@@ -1,32 +1,31 @@
 #!/bin/bash
 
-echo -e "On your master node, run:"
-echo -e "\t make rootCA.crt"
-echo -e "to generate the CA."
-echo -e "Then,"
-echo -e "\t make DOMAIN=localhost"
-echo -e "to generate your local certificate needed for NFS Exporter"
-echo -e "And finally,"
-echo -e "\t make DOMAIN=$(echo -n $(hostname))"
-echo -e "to generate your network-wide certificate."
-echo ""
-echo -e "For each worker node you wish to add, generate the certificate for local and network-wide usage like so:"
-echo -e "\t make DOMAIN=nodename && make DOMAIN=localhost"
-echo -e "and cp nodename* files to the the actual node, in cert/ folder along with the rootCA.crt file."
-
-exit
-
 if [[ $# -lt 1 ]]
 then
-	echo "usage: <node>|<master>"
+	echo "usage: <setup> | <add> <hostname>"
 	exit
 fi
 
-role="node"
+# This oneliner is from https://serverfault.com/questions/367141/how-to-get-the-fully-qualified-name-fqn-on-unix-in-a-bash-script
+fqn=$(host -TtA $(hostname -s)|grep "has address"|awk '{print $1}') ; if [[ "${fqn}" == "" ]] ; then fqn=$(hostname -s) ; fi 
 
-if [[ $1 == "master" ]]
+if [[ $1 == "setup" ]]
 then
-	role="master"
+	# Generate the CA:
+	make rootCA.crt
+	
+	# Generate your local certificate needed for NFS Exporter
+	make DOMAIN=localhost
+	
+	# Generate your network-wide certificate
+	make DOMAIN=$fqn
+elif [[ $1 == "add" ]]
+then
+	if [[ $2 != "" ]]
+	then
+		make DOMAIN=${2}.$(echo $fqn|cut -d. -f2-)
+		scp rootCA.crt ${2}* ${2}:olive-distributed-rendering/ssl/certs/
+	fi
 fi
 
-openssl req -x509 -newkey rsa:4096 -keyout ${role}_key.pem -out ${role}_cert.pem -days 365 -nodes -subj "/CN=$(echo -n $(hostname))"
+

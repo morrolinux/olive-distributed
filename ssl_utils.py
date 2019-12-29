@@ -1,7 +1,13 @@
 import Pyro4.core
 import socket
+import os
 
-LOCAL_HOSTNAME = socket.gethostbyname_ex(socket.gethostname())[0]
+# Doesn't work consistently
+# LOCAL_HOSTNAME = socket.gethostbyname_ex(socket.gethostname())[0]
+
+# Works consistently
+LOCAL_HOSTNAME = os.popen('echo -n $(host -TtA $(hostname -s)|grep \"has address\"|awk \'{print $1}\') ; '
+                          'if [[ \"${fqn}\" == \"\" ]] ; then fqn=$(hostname -s) ; fi').read()
 
 
 class CertCheckingProxy(Pyro4.core.Proxy):
