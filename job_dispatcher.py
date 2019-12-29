@@ -24,13 +24,14 @@ class JobDispatcher:
 
     def __init__(self, jobs):
         self.jobs = jobs
-        self.split_nodes = []
-        self.split_nodes_done = 0
-        self.split_nodes_done_lock = threading.Lock()
+        self.split_workers = 0
+        self.split_workers_lock = threading.Lock()
+        self.split_workers_done = 0
+        self.split_workers_done_lock = threading.Lock()
         self.split_job = None
         self.split_job_parts = 0
         self.parts_lock = threading.Lock()
-        self.render_nodes = []
+        self.workers = []
         self.__test_counter = 0
         SerializerBase.register_dict_to_class("worker_node.WorkerNode", WorkerNode.node_dict_to_class)
         self.nfs_exporter = CertCheckingProxy('PYRO:NfsExporter@localhost:9091')
@@ -42,7 +43,7 @@ class JobDispatcher:
 
     @Pyro4.expose
     def join_work(self, node):
-        self.render_nodes.append(node)
+        self.workers.append(node)
 
     def write_concat_list(self, list_name):
         with open(list_name, "w") as m:
@@ -65,29 +66,42 @@ class JobDispatcher:
         # TODO: handle export range recovery for part jobs
         if exit_status != 0:
             self.jobs.append(job)
+        elif self.split_job is not None:
+            self.split_workers_done_lock.acquire()
+            self.split_workers_done = self.split_workers_done + 1
+            self.split_workers_done_lock.release()
+
         # In any case, always remove the share after a worker is done
         self.nfs_exporter.unexport(job.job_path, to=node.address)
+
+        if self.split_job_finished() and self.all_split_workers_done():
+            self.merge_parts(self.split_job.job_path[self.split_job.job_path.rfind("/") + 1:])
+            print("Export merged. Finished!!!")
+
+    def split_job_finished(self):
+        if self.split_job is None:
+            return False
+        return self.split_job.len == self.split_job.last_rendered_frame
+
+    def all_split_workers_done(self):
+        if self.split_job is None:
+            return False
+        if self.split_workers == self.split_workers_done:
+            return True
+        else:
+            return False
 
     @Pyro4.expose
     def get_job(self, n):
         abort = Job("abort", -1)
-
-        # when a (split) node comes back asking for a job and the current one is finished, merge the parts and quit.
-        if n in self.split_nodes and self.split_job.len == self.split_job.last_rendered_frame:
-            self.split_nodes_done_lock.acquire()
-            self.split_nodes_done = self.split_nodes_done + 1
-            if self.split_nodes_done == len(self.render_nodes):
-                self.merge_parts(self.split_job.job_path[self.split_job.job_path.rfind("/")+1:])
-                print("Export merged. Finished!!!")
-            self.split_nodes_done_lock.release()
 
         if len(self.jobs) <= 0:
             print("PROJECT MANAGER: no more work to do")
             return abort, None, None, None
 
         # Assign a job based on node benchmark score
-        max_score = max(node.cpu_score for node in self.render_nodes)
-        min_score = min(node.cpu_score for node in self.render_nodes)
+        max_score = max(node.cpu_score for node in self.workers)
+        min_score = min(node.cpu_score for node in self.workers)
         max_weight = max(job.job_weight for job in self.jobs)
         min_weight = min(job.job_weight for job in self.jobs)
         fuzzy_job_weight = 0
@@ -104,8 +118,8 @@ class JobDispatcher:
         # if there are more nodes than jobs, check weather a faster node is about to finish its work before assignment
         # if so, don't assign the current job to the current (slower) node and terminate it.
         # TODO: with Pyro, workers in self.render nodes are not updated from remote and cannot provide useful ETA
-        if len(self.jobs) < len(self.render_nodes) and not assigned_job.split:
-            for worker in self.render_nodes:
+        if len(self.jobs) < len(self.workers) and not assigned_job.split:
+            for worker in self.workers:
                 w_eta = worker.job_eta() + worker.job_eta(assigned_job)
                 n_eta = n.job_eta(assigned_job)
                 if w_eta < n_eta:
@@ -118,10 +132,10 @@ class JobDispatcher:
 
             # assign the given worker a chunk size proportional to its rank
             tot_workers_score = 0
-            for worker in self.render_nodes:
+            for worker in self.workers:
                 tot_workers_score = tot_workers_score + worker.cpu_score
             # chunk_size = math.ceil((n.cpu_score / tot_workers_score) * self.split_job.len)
-            chunk_size = math.ceil(600)
+            chunk_size = math.ceil(900)
 
             # where to start/end the chunk (and update seek)
             job_start = self.split_job.last_rendered_frame
@@ -129,8 +143,11 @@ class JobDispatcher:
             # TODO: Make sure to ALWAYS end on a keyframe... (should probably be done in Olive)
             self.split_job.last_rendered_frame = job_end
 
-            # append the given worker to the list of workers doing a split job
-            self.split_nodes.append(n)
+            # Increment the numer of workers who are taking part of the split job..
+            self.split_workers_lock.acquire()
+            self.split_workers = self.split_workers + 1
+            self.split_workers_lock.release()
+
             # update the current number of job parts
             self.split_job_parts = self.split_job_parts + 1
 
