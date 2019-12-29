@@ -23,6 +23,7 @@ class JobDispatcher:
     print(Pyro4.config.SSL_CLIENTCERT)
 
     def __init__(self, jobs):
+        self.d = None
         self.jobs = jobs
         self.split_workers = 0
         self.split_workers_lock = threading.Lock()
@@ -77,7 +78,7 @@ class JobDispatcher:
         if self.split_job_finished() and self.all_split_workers_done():
             self.merge_parts(self.split_job.job_path[self.split_job.job_path.rfind("/") + 1:])
             print("Export merged. Finished!!!")
-            exit(0)
+            self.d.shutdown()
 
     def split_job_finished(self):
         if self.split_job is None:
@@ -181,8 +182,8 @@ class JobDispatcher:
             print("Can't connect to local NFS exporter service, make sure it's running.\n", e)
             return
 
-        d = CertValidatingDaemon(host=LOCAL_HOSTNAME, port=9090)
-        test_uri = d.register(self, "JobDispatcher")
+        self.d = CertValidatingDaemon(host=LOCAL_HOSTNAME, port=9090)
+        test_uri = self.d.register(self, "JobDispatcher")
         print("Job dispatcher ready. URI:", test_uri)
-        d.requestLoop()
+        self.d.requestLoop()
 
