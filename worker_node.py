@@ -5,6 +5,7 @@ import subprocess
 from Pyro4.util import SerializerBase
 from job import Job
 from ssl_utils import CertCheckingProxy
+from ssl_utils import LOCAL_HOSTNAME
 import socket
 from pathlib import Path
 import os
@@ -13,8 +14,8 @@ import os
 class WorkerNode:
     Pyro4.config.SSL = True
     Pyro4.config.SSL_CACERTS = "ssl/certs/rootCA.crt"  # to make ssl accept the self-signed node cert
-    Pyro4.config.SSL_CLIENTCERT = "ssl/certs/"+socket.gethostname()+".crt"
-    Pyro4.config.SSL_CLIENTKEY = "ssl/certs/"+socket.gethostname()+".key"
+    Pyro4.config.SSL_CLIENTCERT = "ssl/certs/"+LOCAL_HOSTNAME+".crt"
+    Pyro4.config.SSL_CLIENTKEY = "ssl/certs/"+LOCAL_HOSTNAME+".key"
 
     def __init__(self, address):
         self.MASTER_ADDRESS = "t480s"
@@ -92,11 +93,12 @@ class WorkerNode:
         if name is not None:
             job_name = str(name)
 
+        initial_folder = os.getcwd()
         os.chdir(self.MOUNTPOINT_DEFAULT)
         project_path = j.job_path[j.job_path.rfind("/") + 1:]
         olive_export = subprocess.run(['olive-editor', project_path, '-e', job_name, job_start, job_end],
                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
+        os.chdir(initial_folder)
         # dummy export jobs:
         # olive_export = subprocess.run(['true'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # success
         # olive_export = subprocess.run(['false'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)   # failure

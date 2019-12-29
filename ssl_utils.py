@@ -1,4 +1,7 @@
 import Pyro4.core
+import socket
+
+LOCAL_HOSTNAME = socket.gethostbyname_ex(socket.gethostname())[0]
 
 
 class CertCheckingProxy(Pyro4.core.Proxy):

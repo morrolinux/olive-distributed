@@ -8,13 +8,14 @@ import math
 from Pyro4.util import SerializerBase
 from ssl_utils import CertCheckingProxy
 from ssl_utils import CertValidatingDaemon
+from ssl_utils import LOCAL_HOSTNAME
 
 
 class JobDispatcher:
     Pyro4.config.SSL = True
     Pyro4.config.SSL_REQUIRECLIENTCERT = True  # 2-way ssl
-    Pyro4.config.SSL_SERVERCERT = "ssl/certs/"+socket.gethostname()+".crt"
-    Pyro4.config.SSL_SERVERKEY = "ssl/certs/"+socket.gethostname()+".key"
+    Pyro4.config.SSL_SERVERCERT = "ssl/certs/"+LOCAL_HOSTNAME+".crt"
+    Pyro4.config.SSL_SERVERKEY = "ssl/certs/"+LOCAL_HOSTNAME+".key"
     Pyro4.config.SSL_CACERTS = "ssl/certs/rootCA.crt"  # to make ssl accept the self-signed master cert
 
     # For using NFS mounter as a client
@@ -163,7 +164,7 @@ class JobDispatcher:
             print("Can't connect to local NFS exporter service, make sure it's running.")
             return
 
-        d = CertValidatingDaemon(host=socket.gethostname(), port=9090)
+        d = CertValidatingDaemon(host=LOCAL_HOSTNAME, port=9090)
         test_uri = d.register(self, "JobDispatcher")
         print("Job dispatcher ready. URI:", test_uri)
         d.requestLoop()

@@ -4,9 +4,9 @@ import Pyro4.errors
 
 
 Pyro4.config.SSL = True
-Pyro4.config.SSL_CACERTS = "certs/node_cert.pem"    # to make ssl accept the self-signed node cert
-Pyro4.config.SSL_CLIENTCERT = "certs/master_cert.pem"
-Pyro4.config.SSL_CLIENTKEY = "certs/master_key.pem"
+Pyro4.config.SSL_CACERTS = "certs/rootCA.crt"    # to make ssl accept the self-signed node cert
+Pyro4.config.SSL_CLIENTCERT = "certs/t480s.homenet.telecomitalia.it.crt"
+Pyro4.config.SSL_CLIENTKEY = "certs/t480s.homenet.telecomitalia.it.key"
 print("SSL enabled (2-way).")
 
 
@@ -37,7 +37,7 @@ class CertCheckingProxy(Pyro4.core.Proxy):
         verify_cert(cert)
 
 
-node_service_name = ('PYRO:NodeService@' + "t480s" + ':9090')
+node_service_name = ('PYRO:NodeService@' + "x1-yoga.homenet.telecomitalia.it" + ':9090')
 # node_service = Pyro4.core.Proxy(node_service_name)
 print("node_service: ", node_service_name)
 
