@@ -4,20 +4,20 @@ import Pyro4.errors
 import subprocess
 from Pyro4.util import SerializerBase
 from job import Job
-from ssl_utils import CertCheckingProxy
-from ssl_utils import LOCAL_HOSTNAME
+from ssl_utils import CertCheckingProxy, LOCAL_HOSTNAME, SSL_CERTS_DIR
 from pathlib import Path
 import os
 
 
 class WorkerNode:
     Pyro4.config.SSL = True
-    Pyro4.config.SSL_CACERTS = "ssl/certs/rootCA.crt"  # to make ssl accept the self-signed node cert
-    Pyro4.config.SSL_CLIENTCERT = "ssl/certs/" + LOCAL_HOSTNAME + ".crt"
-    Pyro4.config.SSL_CLIENTKEY = "ssl/certs/" + LOCAL_HOSTNAME + ".key"
+    Pyro4.config.SSL_CACERTS = SSL_CERTS_DIR + "rootCA.crt"  # to make ssl accept the self-signed node cert
+    Pyro4.config.SSL_CLIENTCERT = SSL_CERTS_DIR + LOCAL_HOSTNAME + ".crt"
+    Pyro4.config.SSL_CLIENTKEY = SSL_CERTS_DIR + LOCAL_HOSTNAME + ".key"
 
     def __init__(self, address):
-        self.MASTER_ADDRESS = "t480s"
+        with open(SSL_CERTS_DIR + 'whoismaster') as f:
+            self.MASTER_ADDRESS = f.read().strip()
         self.MOUNTPOINT_DEFAULT = str(Path.home())+'/olive-share'
         self.address = address
         self.cpu_score = 0

@@ -1,14 +1,14 @@
 import Pyro4.core
-from ssl_utils import CertValidatingDaemon
+from ssl_utils import CertValidatingDaemon, SSL_CERTS_DIR
 import subprocess
 
 
 class NfsExporter:
     Pyro4.config.SSL = True
     Pyro4.config.SSL_REQUIRECLIENTCERT = True  # 2-way ssl
-    Pyro4.config.SSL_SERVERCERT = "ssl/certs/localhost.crt"
-    Pyro4.config.SSL_SERVERKEY = "ssl/certs/localhost.key"
-    Pyro4.config.SSL_CACERTS = "ssl/certs/rootCA.crt"  # to make ssl accept the self-signed master cert
+    Pyro4.config.SSL_SERVERCERT = SSL_CERTS_DIR + "localhost.crt"
+    Pyro4.config.SSL_SERVERKEY = SSL_CERTS_DIR + "localhost.key"
+    Pyro4.config.SSL_CACERTS = SSL_CERTS_DIR + "rootCA.crt"  # to make ssl accept the self-signed master cert
 
     @Pyro4.expose
     def test(self):

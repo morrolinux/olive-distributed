@@ -24,7 +24,9 @@ then
 	if [[ $2 != "" ]]
 	then
 		make DOMAIN=${2}.$(echo $fqn|cut -d. -f2-)
-		scp rootCA.crt ${2}* ${2}:olive-distributed-rendering/ssl/certs/
+		make DOMAIN=localhost NAME=${2}_local
+		echo $fqn > whoismaster
+		scp whoismaster rootCA.crt ${2}* ${2}:olive-distributed-rendering/ssl/certs/
 	fi
 fi
 

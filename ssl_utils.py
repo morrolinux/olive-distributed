@@ -9,6 +9,8 @@ import os
 LOCAL_HOSTNAME = os.popen('echo -n $(host -TtA $(hostname -s)|grep \"has address\"|awk \'{print $1}\') ; '
                           'if [[ \"${fqn}\" == \"\" ]] ; then fqn=$(hostname -s) ; fi').read()
 
+SSL_CERTS_DIR = "ssl/certs/"
+
 
 class CertCheckingProxy(Pyro4.core.Proxy):
     @staticmethod
