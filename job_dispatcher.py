@@ -120,7 +120,8 @@ class JobDispatcher:
             tot_workers_score = 0
             for worker in self.render_nodes:
                 tot_workers_score = tot_workers_score + worker.cpu_score
-            chunk_size = math.ceil((n.cpu_score / tot_workers_score) * self.split_job.len)
+            # chunk_size = math.ceil((n.cpu_score / tot_workers_score) * self.split_job.len)
+            chunk_size = math.ceil(600)
 
             # where to start/end the chunk (and update seek)
             job_start = self.split_job.last_rendered_frame
@@ -143,13 +144,11 @@ class JobDispatcher:
             self.parts_lock.release()
 
             # Export the folder via NFS so that the worker node can access it
-            # TODO: decide when to unexport after job finish
             self.nfs_exporter.export(self.split_job.job_path, to=n.address)
             # Return the job to the worker node
             return self.split_job, str(self.split_job_parts), job_start, job_end
 
         # Export the folder via NFS so that the worker node can access it
-        # TODO: decide when to unexport after job finish
         self.nfs_exporter.export(assigned_job.job_path, to=n.address)
 
         print(n.address + "\trunning job: ", assigned_job.job_path[assigned_job.job_path.rfind("/")+1:],

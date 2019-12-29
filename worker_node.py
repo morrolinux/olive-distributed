@@ -83,19 +83,23 @@ class WorkerNode:
         self._job_start_time = time.time()
         self._job = j
 
-        job_start = job_end = job_name = ""
-        if start is not None:
-            job_start = str(start)
-        if end is not None:
-            job_end = str(end)
+        project_path = j.job_path[j.job_path.rfind("/") + 1:]
+        olive_args = ['olive-editor', project_path, '-e']
+
+        job_name = ": "
         if name is not None:
-            job_name = str(name)
+            olive_args.append(str(name))
+            job_name = job_name + str(name)
+        if start is not None:
+            olive_args.append('--export-start')
+            olive_args.append(str(start))
+        if end is not None:
+            olive_args.append('--export-end')
+            olive_args.append(str(end))
 
         initial_folder = os.getcwd()
         os.chdir(self.MOUNTPOINT_DEFAULT)
-        project_path = j.job_path[j.job_path.rfind("/") + 1:]
-        olive_export = subprocess.run(['olive-editor', project_path, '-e', job_name, job_start, job_end],
-                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        olive_export = subprocess.run(olive_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         os.chdir(initial_folder)
         # dummy export jobs:
         # time.sleep((j.job_weight/self.cpu_score)/100)
@@ -103,9 +107,9 @@ class WorkerNode:
         # olive_export = subprocess.run(['false'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)   # failure
 
         if olive_export.returncode == 0:
-            print("Exported successfully:", j.job_path, ":", job_name)
+            print("Exported successfully:", j.job_path, job_name)
         else:
-            print("Error exporting", j.job_path)
+            print("Error exporting", j.job_path, "\n", olive_export.stdout, olive_export.stderr)
 
         self.nfs_mounter.umount(self.MOUNTPOINT_DEFAULT)
         self.job_dispatcher.report(self, j, olive_export.returncode)
