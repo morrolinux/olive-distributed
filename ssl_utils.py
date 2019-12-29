@@ -5,10 +5,16 @@ import os
 # Doesn't work consistently
 # LOCAL_HOSTNAME = socket.gethostbyname_ex(socket.gethostname())[0]
 
-# Works consistently
-LOCAL_HOSTNAME = os.popen('echo -n $(host -TtA $(hostname -s)|grep \"has address\"|awk \'{print $1}\') ; '
-                          'if [[ \"${fqn}\" == \"\" ]] ; then fqn=$(hostname -s) ; fi').read()
 
+# Works consistently
+def fqdn():
+    full = os.popen('echo -n $(host -TtA $(hostname -s)|grep \"has address\"|awk \'{print $1}\') ; '
+                          'if [[ \"${fqn}\" == \"\" ]] ; then fqn=$(hostname -s) ; fi').read()
+    domain = full[full.find('.'):]
+    return socket.gethostname() + domain
+
+
+LOCAL_HOSTNAME = fqdn()
 SSL_CERTS_DIR = "ssl/certs/"
 
 
