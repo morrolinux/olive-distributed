@@ -28,7 +28,7 @@ class NfsMounter:
     def mount(self, path, address, mountpoint):
         path = self.__nfs4_syntax(path, address)
         print("mounting", path)
-        if subprocess.run(['mount', path, mountpoint], stdout=subprocess.PIPE).returncode != 0:
+        if subprocess.run(['mount', path, mountpoint, '-w'], stdout=subprocess.PIPE).returncode != 0:
             print("There was an error mounting", path, "- I might not be able to access media.")
             return -1
         return 0

@@ -1,6 +1,7 @@
 import Pyro4.core
 from ssl_utils import CertValidatingDaemon, SSL_CERTS_DIR
 import subprocess
+from os import stat
 
 
 class NfsExporter:
@@ -28,9 +29,12 @@ class NfsExporter:
 
     @Pyro4.expose
     def export(self, path, to=None):
+        folder_uid = str(stat(path).st_uid)
+        folder_gid = str(stat(path).st_gid)
         path = self.__nfs4_syntax(path, to)
         print("exporting", path)
-        if subprocess.run(['exportfs', path, '-o', 'rw'], stdout=subprocess.PIPE).returncode != 0:
+        if subprocess.run(['exportfs', path, '-o', 'rw,all_squash,anonuid=' + folder_uid + ',anongid=' + folder_gid],
+                          stdout=subprocess.PIPE).returncode != 0:
             print("There was an error exporting", path, "- Worker node might not be able to access media.")
 
     @Pyro4.expose
