@@ -26,15 +26,15 @@ class NfsMounter:
         return path
 
     @Pyro4.expose
-    def mount(self, path, address, mountpoint):
+    def mount(self, path, address, mountpoint, nfs_options):
         try:
             os.mkdir(mountpoint)
         except FileExistsError:
             pass
         path = self.__nfs4_syntax(path, address)
         print("mounting", path)
-        nfs_options = ['mount', path, mountpoint, '-w', '-o', 'noacl,nocto,noatime,nodiratime']
-        mounter = subprocess.run(nfs_options, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        mount_options = ['mount', path, mountpoint, '-w'] + nfs_options
+        mounter = subprocess.run(mount_options, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if mounter.returncode != 0:
             print("There was an error mounting", path, "- I might not be able to access media.")
             print(mounter.stdout, mounter.stderr)

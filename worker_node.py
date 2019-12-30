@@ -28,6 +28,7 @@ class WorkerNode:
         self._job = None
         self.sample_weight = None
         self.sample_time = None
+        self.worker_options = dict()
         self.job_dispatcher = CertCheckingProxy('PYRO:JobDispatcher@' + self.MASTER_ADDRESS + ':9090')
         self.nfs_mounter = CertCheckingProxy('PYRO:NfsMounter@' + 'localhost' + ':9092')
         SerializerBase.register_dict_to_class("job.Job", Job.job_dict_to_class)
@@ -61,6 +62,7 @@ class WorkerNode:
                 continue
 
             self.run_benchmark()
+            self.worker_options.update(self.job_dispatcher.get_worker_options())
             self.job_dispatcher.join_work(self)
             self.__run()
             return
@@ -76,7 +78,8 @@ class WorkerNode:
                 time.sleep(j.job_weight)
                 continue
             # mount the NFS share before starting
-            if self.nfs_mounter.mount(j.job_path, self.MASTER_ADDRESS, self.MOUNTPOINT_DEFAULT) != 0:
+            if self.nfs_mounter.mount(j.job_path, self.MASTER_ADDRESS, self.MOUNTPOINT_DEFAULT,
+                                      self.worker_options["nfs_tuning"]) != 0:
                 self.job_dispatcher.report(self, j, -1, {name: (start, end)})
                 return
             self.run_job(j, name, start, end)

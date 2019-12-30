@@ -37,6 +37,11 @@ class JobDispatcher:
         return "connection ok"
 
     @Pyro4.expose
+    def get_worker_options(self):
+        options = {"nfs_tuning": ['-o', 'noacl,nocto,noatime,nodiratime']}
+        return options
+
+    @Pyro4.expose
     def join_work(self, node):
         self.workers.append(node)
 
@@ -137,7 +142,6 @@ class JobDispatcher:
 
             # If we're still working but all frames have been assigned, check if there are failed ranges left
             if job_end - job_start == 0:
-                
                 # If there are not failed jobs left, we are really done.
                 if len(self.split_job.failed_ranges) == 0:
                     self.parts_lock.release()
