@@ -48,7 +48,7 @@ class WorkerNode:
         import random
         self.cpu_score = random.randrange(1, 10)
         self.net_score = random.randrange(1, 10)
-        # self.cpu_score = float(subprocess.run(['bench/bench-host.sh'], stdout=subprocess.PIPE).stdout)
+        self.cpu_score = float(subprocess.run(['bench/bench-host.sh'], stdout=subprocess.PIPE).stdout)
         print("node", self.address, "\t\tCPU:", self.cpu_score)
 
     def run(self):
@@ -101,16 +101,16 @@ class WorkerNode:
 
         initial_folder = os.getcwd()
         os.chdir(self.MOUNTPOINT_DEFAULT)
-        # olive_export = subprocess.run(olive_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        olive_export = subprocess.run(olive_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         os.chdir(initial_folder)
         # dummy export jobs:
         # time.sleep((j.job_weight/self.cpu_score)/100)
-        time.sleep(1)
-        import random
-        if random.randrange(-100, 100) > 0:
-            olive_export = subprocess.run(['true'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # success
-        else:
-            olive_export = subprocess.run(['false'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)   # failure
+        # time.sleep(1)
+        # import random
+        # if random.randrange(-100, 100) > 0:
+        #     olive_export = subprocess.run(['true'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # success
+        # else:
+        #     olive_export = subprocess.run(['false'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)   # failure
 
         if olive_export.returncode == 0:
             print("Exported successfully:", j.job_path, job_name)
