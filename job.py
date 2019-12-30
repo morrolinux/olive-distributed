@@ -42,11 +42,12 @@ class Job:
 
     def split_job_finished(self):
         if len(self.completed_ranges) == 0:
-            len_completed = False
+            total_len_covered = False
         else:
-            len_completed = self.len == max(n[1] for n in self.completed_ranges.values())
+            total_len_covered = self.len == max(n[1] for n in self.completed_ranges.values())
+        all_parts_done = self.parts == len(self.completed_ranges)
         no_failed_ranges = len(self.failed_ranges) == 0
-        return len_completed and no_failed_ranges
+        return total_len_covered and all_parts_done and no_failed_ranges
 
     @staticmethod
     def job_dict_to_class(classname, d):

@@ -134,10 +134,15 @@ class JobDispatcher:
             job_start = self.split_job.last_assigned_frame
             job_end = min(job_start + chunk_size, self.split_job.len)
             self.split_job.last_assigned_frame = job_end
-            job_name = self.split_job.parts
 
-            # If we're still working but all frames have been assigned, there must be failed ranges left
+            # If we're still working but all frames have been assigned, check if there are failed ranges left
             if job_end - job_start == 0:
+                
+                # If there are not failed jobs left, we are really done.
+                if len(self.split_job.failed_ranges) == 0:
+                    self.parts_lock.release()
+                    return abort, None, None, None
+
                 r = self.split_job.failed_ranges.popitem()
                 print("Retrying failed part:", r)
                 job_name = r[0]
