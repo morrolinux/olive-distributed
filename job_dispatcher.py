@@ -36,6 +36,7 @@ class JobDispatcher:
         self.__test_counter = 0
         SerializerBase.register_dict_to_class("worker_node.WorkerNode", WorkerNode.node_dict_to_class)
         self.nfs_exporter = CertCheckingProxy('PYRO:NfsExporter@localhost:9091')
+        self.first_run = True
 
     @Pyro4.expose
     def test(self):
@@ -101,6 +102,12 @@ class JobDispatcher:
             print("PROJECT MANAGER: no more work to do")
             return abort, None, None, None
 
+        if self.first_run:
+            import time
+            print("waiting to see if any other workers are joining us...")
+            time.sleep(5)
+            self.first_run = False
+
         # Assign a job based on node benchmark score
         max_score = max(node.cpu_score for node in self.workers)
         min_score = min(node.cpu_score for node in self.workers)
@@ -137,7 +144,13 @@ class JobDispatcher:
             for worker in self.workers:
                 tot_workers_score = tot_workers_score + worker.cpu_score
             # chunk_size = math.ceil((n.cpu_score / tot_workers_score) * self.split_job.len)
-            chunk_size = math.ceil(900)
+            # s = math.ceil(self.split_job.len / (len(self.workers) * 2))
+
+            if len(self.workers) > 1:
+                s = 1000
+                chunk_size = s + math.ceil((n.cpu_score / tot_workers_score) * s)
+            else:
+                chunk_size = 1800
 
             # where to start/end the chunk (and update seek)
             job_start = self.split_job.last_rendered_frame
@@ -153,7 +166,7 @@ class JobDispatcher:
             # update the current number of job parts
             self.split_job_parts = self.split_job_parts + 1
 
-            print(n.address, "will export", self.split_job.job_path, "from", job_start, "to", job_end,
+            print(n.address, "will export from", job_start, "to", job_end,
                   "- part", self.split_job_parts, "(", job_end - job_start, "frames )")
 
             if self.split_job.len == job_end:
