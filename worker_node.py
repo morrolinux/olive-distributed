@@ -7,6 +7,7 @@ from job import Job
 from ssl_utils import CertCheckingProxy, LOCAL_HOSTNAME, SSL_CERTS_DIR
 from pathlib import Path
 import os
+import sys
 
 
 class WorkerNode:
@@ -14,6 +15,7 @@ class WorkerNode:
     Pyro4.config.SSL_CACERTS = SSL_CERTS_DIR + "rootCA.crt"  # to make ssl accept the self-signed node cert
     Pyro4.config.SSL_CLIENTCERT = SSL_CERTS_DIR + LOCAL_HOSTNAME + ".crt"
     Pyro4.config.SSL_CLIENTKEY = SSL_CERTS_DIR + LOCAL_HOSTNAME + ".key"
+    sys.excepthook = Pyro4.util.excepthook
 
     def __init__(self, address):
         with open(SSL_CERTS_DIR + 'whoismaster') as f:
@@ -46,7 +48,7 @@ class WorkerNode:
         import random
         self.cpu_score = random.randrange(1, 10)
         self.net_score = random.randrange(1, 10)
-        self.cpu_score = float(subprocess.run(['bench/bench-host.sh'], stdout=subprocess.PIPE).stdout)
+        # self.cpu_score = float(subprocess.run(['bench/bench-host.sh'], stdout=subprocess.PIPE).stdout)
         print("node", self.address, "\t\tCPU:", self.cpu_score)
 
     def run(self):
@@ -75,7 +77,7 @@ class WorkerNode:
                 continue
             # mount the NFS share before starting
             if self.nfs_mounter.mount(j.job_path, self.MASTER_ADDRESS, self.MOUNTPOINT_DEFAULT) != 0:
-                self.job_dispatcher.report(self, j, -1)
+                self.job_dispatcher.report(self, j, -1, {name: (start, end)})
                 return
             self.run_job(j, name, start, end)
 
@@ -99,12 +101,16 @@ class WorkerNode:
 
         initial_folder = os.getcwd()
         os.chdir(self.MOUNTPOINT_DEFAULT)
-        olive_export = subprocess.run(olive_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # olive_export = subprocess.run(olive_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         os.chdir(initial_folder)
         # dummy export jobs:
         # time.sleep((j.job_weight/self.cpu_score)/100)
-        # olive_export = subprocess.run(['true'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # success
-        # olive_export = subprocess.run(['false'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)   # failure
+        time.sleep(1)
+        import random
+        if random.randrange(-100, 100) > 0:
+            olive_export = subprocess.run(['true'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # success
+        else:
+            olive_export = subprocess.run(['false'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)   # failure
 
         if olive_export.returncode == 0:
             print("Exported successfully:", j.job_path, job_name)
@@ -112,7 +118,7 @@ class WorkerNode:
             print("Error exporting", j.job_path, "\n", olive_export.stdout, olive_export.stderr)
 
         self.nfs_mounter.umount(self.MOUNTPOINT_DEFAULT)
-        self.job_dispatcher.report(self, j, olive_export.returncode)
+        self.job_dispatcher.report(self, j, olive_export.returncode, {name: (start, end)})
 
         self.sample_weight = j.job_weight
         self.sample_time = time.time() - self._job_start_time
