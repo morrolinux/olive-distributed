@@ -73,6 +73,8 @@ class WorkerNode:
             print("got job:", j)
             if j.job_path == "abort":
                 print(self.address, "\tterminating...")
+                # In any case umount when finished
+                self.nfs_mounter.umount(self.MOUNTPOINT_DEFAULT)
                 return
             if j.job_path == "retry":
                 time.sleep(j.job_weight)
@@ -120,7 +122,10 @@ class WorkerNode:
         else:
             print("Error exporting", j.job_path, "\n", olive_export.stdout, olive_export.stderr)
 
-        self.nfs_mounter.umount(self.MOUNTPOINT_DEFAULT)
+        # If we completed a with a full job, umount. Otherwise umount on abort
+        if not j.split:
+            self.nfs_mounter.umount(self.MOUNTPOINT_DEFAULT)
+
         self.job_dispatcher.report(self, j, olive_export.returncode, {name: (start, end)})
 
         self.sample_weight = j.job_weight

@@ -56,3 +56,6 @@ class Job:
         j.split = d["split"]
         j.last_assigned_frame = d["last_assigned_frame"]
         return j
+
+
+abort_job = Job("abort", -1)

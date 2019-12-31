@@ -12,6 +12,9 @@ class NfsMounter:
     Pyro4.config.SSL_SERVERKEY = SSL_CERTS_DIR + socket.gethostname() + "_local.key"
     Pyro4.config.SSL_CACERTS = SSL_CERTS_DIR + "rootCA.crt"  # to make ssl accept the self-signed master cert
 
+    def __init__(self):
+        self._mounts = set()
+
     @Pyro4.expose
     def test(self):
         return "ok"
@@ -32,13 +35,20 @@ class NfsMounter:
         except FileExistsError:
             pass
         path = self.__nfs4_syntax(path, address)
-        print("mounting", path)
         mount_options = ['mount', path, mountpoint, '-w'] + nfs_options
+
+        # Don't mount twice
+        if ''.join(mount_options) in self._mounts:
+            return 0
+
+        print("mounting", path)
         mounter = subprocess.run(mount_options, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
         if mounter.returncode != 0:
             print("There was an error mounting", path, "- I might not be able to access media.")
             print(mounter.stdout, mounter.stderr)
             return -1
+        self._mounts.add(''.join(mount_options))
         return 0
 
     @Pyro4.expose
