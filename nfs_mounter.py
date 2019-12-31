@@ -57,6 +57,7 @@ class NfsMounter:
         if subprocess.run(['umount', mountpoint], stdout=subprocess.PIPE).returncode != 0:
             print("There was an error umounting", mountpoint, "- media might still be accessible.")
             return -1
+        self._mounts.clear()
         return 0
 
     def start(self):

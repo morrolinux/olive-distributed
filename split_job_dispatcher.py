@@ -32,7 +32,7 @@ class SplitJobDispatcher(JobDispatcher):
 
     @Pyro4.expose
     def report(self, node, job, exit_status, export_range):
-        print("NODE", node.address, "completed job", job.job_path, "with status", exit_status)
+        print("NODE", node.address, "completed part", export_range, "with status", exit_status)
         # If export failed, re-insert the failed range
         if exit_status != 0:
             self.split_job.fail(export_range)
@@ -58,6 +58,8 @@ class SplitJobDispatcher(JobDispatcher):
             print("waiting to see if any other workers are joining us...")
             time.sleep(5)
             self.first_run = False
+
+        # TODO: maybe implement an adapted version of slow tail fix for part assignment
 
         self.parts_lock.acquire()
 
