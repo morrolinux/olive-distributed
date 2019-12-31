@@ -25,23 +25,22 @@ class JobDispatcher:
     def __init__(self, jobs):
         self.d = None
         self.jobs = jobs
-        self.split_workers = 0
-        self.split_workers_lock = threading.Lock()
-        self.split_workers_done = 0
-        self.split_workers_done_lock = threading.Lock()
         self.split_job = None
-        self.split_job_parts = 0
         self.parts_lock = threading.Lock()
         self.workers = []
-        self.__test_counter = 0
         SerializerBase.register_dict_to_class("worker_node.WorkerNode", WorkerNode.node_dict_to_class)
         self.nfs_exporter = CertCheckingProxy('PYRO:NfsExporter@localhost:9091')
         self.first_run = True
 
     @Pyro4.expose
     def test(self):
-        self.__test_counter += 1
-        return "connection ok ("+str(self.__test_counter)+")"
+        return "connection ok"
+
+    @Pyro4.expose
+    def get_worker_options(self):
+        # options = {"nfs_tuning": ['-o', 'noacl,nocto,noatime,nodiratime']}
+        options = {"nfs_tuning": ['-o', 'async']}
+        return options
 
     @Pyro4.expose
     def join_work(self, node):
@@ -49,7 +48,7 @@ class JobDispatcher:
 
     def write_concat_list(self, list_name):
         with open(list_name, "w") as m:
-            for p in range(1, self.split_job_parts + 1):
+            for p in range(1, len(self.split_job.completed_ranges) + 1):
                 m.write("file \'" + str(p) + ".mp4\'\n")
 
     def merge_parts(self, output_name):
@@ -58,41 +57,30 @@ class JobDispatcher:
         self.write_concat_list(list_name)
         os.system("ffmpeg -f concat -safe 0 -i " + list_name + " -c copy " + output_name + ".mp4" + " -y")
         os.remove(list_name)
-        for p in range(1, self.split_job_parts + 1):
+        for p in range(1, len(self.split_job.completed_ranges) + 1):
             os.remove(str(p) + ".mp4")
 
     @Pyro4.expose
-    def report(self, node, job, exit_status):
+    def report(self, node, job, exit_status, export_range=None):
         print("NODE", node.address, "completed job", job.job_path, "with status", exit_status)
         # If the export fails, re-insert it in the job queue
-        # TODO: handle export range recovery for part jobs
-        if exit_status != 0:
+        if exit_status != 0 and export_range is None:
             self.jobs.append(job)
-        elif self.split_job is not None:
-            self.split_workers_done_lock.acquire()
-            self.split_workers_done = self.split_workers_done + 1
-            self.split_workers_done_lock.release()
+        # If the failed export was part of a split job, re-insert the failed range
+        elif exit_status != 0 and export_range is not None:
+            self.split_job.fail(export_range)
+        # If the split job export went fine, move the exported range to the completed ones
+        elif self.split_job is not None and export_range is not None:
+            self.split_job.complete(export_range)
 
         # In any case, always remove the share after a worker is done
         self.nfs_exporter.unexport(job.job_path, to=node.address)
 
-        if self.split_job_finished() and self.all_split_workers_done():
+        if self.split_job is not None and self.split_job.split_job_finished():
             self.merge_parts(self.split_job.job_path[self.split_job.job_path.rfind("/") + 1:])
             print("Export merged. Finished!!!")
+            self.jobs.remove(self.split_job)
             self.d.shutdown()
-
-    def split_job_finished(self):
-        if self.split_job is None:
-            return False
-        return self.split_job.len == self.split_job.last_rendered_frame
-
-    def all_split_workers_done(self):
-        if self.split_job is None:
-            return False
-        if self.split_workers == self.split_workers_done:
-            return True
-        else:
-            return False
 
     @Pyro4.expose
     def get_job(self, n):
@@ -140,12 +128,7 @@ class JobDispatcher:
             self.split_job = assigned_job
 
             # assign the given worker a chunk size proportional to its rank
-            tot_workers_score = 0
-            for worker in self.workers:
-                tot_workers_score = tot_workers_score + worker.cpu_score
-            # chunk_size = math.ceil((n.cpu_score / tot_workers_score) * self.split_job.len)
-            # s = math.ceil(self.split_job.len / (len(self.workers) * 2))
-
+            tot_workers_score = sum(worker.cpu_score for worker in self.workers)
             if len(self.workers) > 1:
                 s = 1000
                 chunk_size = s + math.ceil((n.cpu_score / tot_workers_score) * s)
@@ -153,32 +136,40 @@ class JobDispatcher:
                 chunk_size = 1800
 
             # where to start/end the chunk (and update seek)
-            job_start = self.split_job.last_rendered_frame
+            # TODO: Make sure to ALWAYS match keyframes... (should probably be done in Olive)
+            job_start = self.split_job.last_assigned_frame
             job_end = min(job_start + chunk_size, self.split_job.len)
-            # TODO: Make sure to ALWAYS end on a keyframe... (should probably be done in Olive)
-            self.split_job.last_rendered_frame = job_end
+            self.split_job.last_assigned_frame = job_end
 
-            # Increment the numer of workers who are taking part of the split job..
-            self.split_workers_lock.acquire()
-            self.split_workers = self.split_workers + 1
-            self.split_workers_lock.release()
+            # If we're still working but all frames have been assigned, check if there are failed ranges left
+            if job_end - job_start == 0:
+                # If there are not failed jobs left, we are really done.
+                if len(self.split_job.failed_ranges) == 0:
+                    self.parts_lock.release()
+                    return abort, None, None, None
 
-            # update the current number of job parts
-            self.split_job_parts = self.split_job_parts + 1
+                r = self.split_job.failed_ranges.popitem()
+                print("Retrying failed part:", r)
+                job_name = r[0]
+                job_start = r[1][0]
+                job_end = r[1][1]
+            else:
+                # update the current number of job parts
+                self.split_job.parts = self.split_job.parts + 1
+                job_name = self.split_job.parts
 
             print(n.address, "will export from", job_start, "to", job_end,
-                  "- part", self.split_job_parts, "(", job_end - job_start, "frames )")
-
-            if self.split_job.len == job_end:
-                self.jobs.remove(assigned_job)
-                # TODO: probably don't need to save self.split and remove it from the queue, but instead
-                #  keep it until termination condition (at the beginning of this procedure) is reached.
-            self.parts_lock.release()
+                  "- part", job_name, "(", job_end - job_start, "frames )")
 
             # Export the folder via NFS so that the worker node can access it
             self.nfs_exporter.export(self.split_job.job_path, to=n.address)
+
+            # Beware the possible race condition that could happen if parts,start,end
+            # get changed just after releasing this lock and before returning them to the worker
+            self.parts_lock.release()
+
             # Return the job to the worker node
-            return self.split_job, str(self.split_job_parts), job_start, job_end
+            return self.split_job, str(job_name), job_start, job_end
 
         # Export the folder via NFS so that the worker node can access it
         self.nfs_exporter.export(assigned_job.job_path, to=n.address)

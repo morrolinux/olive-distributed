@@ -2,6 +2,7 @@ import Pyro4.core
 from ssl_utils import CertValidatingDaemon, SSL_CERTS_DIR
 import subprocess
 import socket
+import os
 
 
 class NfsMounter:
@@ -25,11 +26,18 @@ class NfsMounter:
         return path
 
     @Pyro4.expose
-    def mount(self, path, address, mountpoint):
+    def mount(self, path, address, mountpoint, nfs_options):
+        try:
+            os.mkdir(mountpoint)
+        except FileExistsError:
+            pass
         path = self.__nfs4_syntax(path, address)
         print("mounting", path)
-        if subprocess.run(['mount', path, mountpoint, '-w'], stdout=subprocess.PIPE).returncode != 0:
+        mount_options = ['mount', path, mountpoint, '-w'] + nfs_options
+        mounter = subprocess.run(mount_options, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if mounter.returncode != 0:
             print("There was an error mounting", path, "- I might not be able to access media.")
+            print(mounter.stdout, mounter.stderr)
             return -1
         return 0
 
