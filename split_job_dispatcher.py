@@ -12,7 +12,6 @@ class SplitJobDispatcher(JobDispatcher):
         super().__init__()
         self.split_job = None
         self.parts_lock = threading.Lock()
-        self.finish_barrier = None
         self.worker_fails = dict()
 
     def write_concat_list(self, list_name):
@@ -34,32 +33,27 @@ class SplitJobDispatcher(JobDispatcher):
             self.nfs_exporter.unexport(self.split_job.job_path, to=worker.address)
 
     @Pyro4.expose
-    def report(self, node, job, exit_status, export_range=None):
-        if export_range is not None:
-            print("NODE", node.address, "completed part", export_range, "with status", exit_status)
-            # If export failed, re-insert the failed range
-            if exit_status != 0:
-                self.split_job.fail(export_range)
-                self.worker_fails[node.address].append(export_range)
-            # If the split job export went fine, move the exported range to the completed ones
-            else:
-                self.split_job.complete(export_range)
-
-        if self.split_job.split_job_finished():
-            i = self.finish_barrier.wait()
-            if i == 0:
-                print("finishing...")
-                self.remove_shares()
-                self.merge_parts(self.split_job.job_path[self.split_job.job_path.rfind("/") + 1:])
-                print("Export merged. Finished!!!")
-                self.daemon.shutdown()
-
-    @Pyro4.expose
     def join_work(self, node):
         super().join_work(node)
         self.worker_fails[node.address] = []
-        self.finish_barrier = threading.Barrier(len(self.worker_fails))
         self.nfs_exporter.export(self.split_job.job_path, to=node.address)
+
+    @Pyro4.expose
+    def report(self, node, job, exit_status, export_range):
+        print("NODE", node.address, "completed part", export_range, "with status", exit_status)
+        # If export failed, re-insert the failed range
+        if exit_status != 0:
+            self.split_job.fail(export_range)
+            self.worker_fails[node.address].append(export_range)
+        # If the split job export went fine, move the exported range to the completed ones
+        else:
+            self.split_job.complete(export_range)
+
+        if self.split_job.split_job_finished():
+            self.remove_shares()
+            self.merge_parts(self.split_job.job_path[self.split_job.job_path.rfind("/") + 1:])
+            print("Export merged. Finished!!!")
+            self.daemon.shutdown()
 
     @Pyro4.expose
     def get_job(self, n):
