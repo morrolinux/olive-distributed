@@ -78,6 +78,7 @@ class WorkerNode:
                 return
             if j.job_path == "retry":
                 time.sleep(j.job_weight)
+                self.job_dispatcher.report(self, j, 0, None)
                 continue
             # mount the NFS share before starting
             if self.nfs_mounter.mount(j.job_path, self.MASTER_ADDRESS, self.MOUNTPOINT_DEFAULT,

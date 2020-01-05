@@ -4,6 +4,7 @@ import threading
 from job import Job, abort_job
 import os
 import math
+import time
 
 
 class SplitJobDispatcher(JobDispatcher):
@@ -11,6 +12,8 @@ class SplitJobDispatcher(JobDispatcher):
         super().__init__()
         self.split_job = None
         self.parts_lock = threading.Lock()
+        self.finish_barrier = None
+        self.worker_fails = dict()
 
     def write_concat_list(self, list_name):
         with open(list_name, "w") as m:
@@ -31,30 +34,39 @@ class SplitJobDispatcher(JobDispatcher):
             self.nfs_exporter.unexport(self.split_job.job_path, to=worker.address)
 
     @Pyro4.expose
-    def report(self, node, job, exit_status, export_range):
-        print("NODE", node.address, "completed part", export_range, "with status", exit_status)
-        # If export failed, re-insert the failed range
-        if exit_status != 0:
-            self.split_job.fail(export_range)
-        # If the split job export went fine, move the exported range to the completed ones
-        else:
-            self.split_job.complete(export_range)
+    def report(self, node, job, exit_status, export_range=None):
+        if export_range is not None:
+            print("NODE", node.address, "completed part", export_range, "with status", exit_status)
+            # If export failed, re-insert the failed range
+            if exit_status != 0:
+                self.split_job.fail(export_range)
+                self.worker_fails[node.address].append(export_range)
+            # If the split job export went fine, move the exported range to the completed ones
+            else:
+                self.split_job.complete(export_range)
 
         if self.split_job.split_job_finished():
-            self.remove_shares()
-            self.merge_parts(self.split_job.job_path[self.split_job.job_path.rfind("/") + 1:])
-            print("Export merged. Finished!!!")
-            self.daemon.shutdown()
+            i = self.finish_barrier.wait()
+            if i == 0:
+                print("finishing...")
+                self.remove_shares()
+                self.merge_parts(self.split_job.job_path[self.split_job.job_path.rfind("/") + 1:])
+                print("Export merged. Finished!!!")
+                self.daemon.shutdown()
 
     @Pyro4.expose
     def join_work(self, node):
         super().join_work(node)
+        self.worker_fails[node.address] = []
+        self.finish_barrier = threading.Barrier(len(self.worker_fails))
         self.nfs_exporter.export(self.split_job.job_path, to=node.address)
 
     @Pyro4.expose
     def get_job(self, n):
+        if self.split_job.split_job_finished():
+            return abort_job, None, None, None      # TODO: consider grouping name, start, end into a range object
+
         if self.first_run:
-            import time
             print("waiting to see if any other workers are joining us...")
             time.sleep(5)
             self.first_run = False
@@ -66,7 +78,7 @@ class SplitJobDispatcher(JobDispatcher):
         # assign the given worker a chunk size proportional to its rank
         tot_workers_score = sum(worker.cpu_score for worker in self.workers)
         if len(self.workers) > 1:
-            s = 1000
+            s = 900
             chunk_size = s + math.ceil((n.cpu_score / tot_workers_score) * s)
         else:
             chunk_size = 1800
@@ -82,9 +94,17 @@ class SplitJobDispatcher(JobDispatcher):
             # If there are not failed jobs left, we are really done.
             if len(self.split_job.failed_ranges) == 0:
                 self.parts_lock.release()
-                return abort_job, None, None, None
+                # Instead of terminating other workers, make them wait for a possible failed job to come
+                # from the last worker node
+                return Job("retry", 1), None, None, None
 
             r = self.split_job.failed_ranges.popitem()
+            # If a worker has already failed this specific range, don't attempt again
+            if r in self.worker_fails[n.address]:
+                self.parts_lock.release()
+                self.split_job.failed_ranges.update(r)
+                return Job("retry", 1), None, None, None
+
             print("Retrying failed part:", r)
             job_name = r[0]
             job_start = r[1][0]
