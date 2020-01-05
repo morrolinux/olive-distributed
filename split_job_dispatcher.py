@@ -1,7 +1,7 @@
 import Pyro4.core
 from job_dispatcher import JobDispatcher
 import threading
-from job import Job, abort_job
+from job import Job, abort_job, ExportRange
 import os
 import math
 import time
@@ -58,7 +58,7 @@ class SplitJobDispatcher(JobDispatcher):
     @Pyro4.expose
     def get_job(self, n):
         if self.split_job.split_job_finished():
-            return abort_job, None, None, None      # TODO: consider grouping name, start, end into a range object
+            return abort_job, None      # TODO: consider grouping name, start, end into a range object
 
         if self.first_run:
             print("waiting to see if any other workers are joining us...")
@@ -85,24 +85,24 @@ class SplitJobDispatcher(JobDispatcher):
 
         # If we're still working but all frames have been assigned, check if there are failed ranges left
         if job_end - job_start == 0:
-            # If there are not failed jobs left, we are really done.
+            # If there are no failed jobs left, we are really done.
             if len(self.split_job.failed_ranges) == 0:
                 self.parts_lock.release()
                 # Instead of terminating other workers, make them wait for a possible failed job to come
                 # from the last worker node
-                return Job("retry", 1), None, None, None
+                return Job("retry", 1), None
 
-            r = self.split_job.failed_ranges.popitem()
+            r = self.split_job.failed_ranges.pop()
             # If a worker has already failed this specific range, don't attempt again
             if r in self.worker_fails[n.address]:
                 self.parts_lock.release()
-                self.split_job.failed_ranges.update(r)
-                return Job("retry", 1), None, None, None
+                self.split_job.failed_ranges.add(r)
+                return Job("retry", 1), None
 
             print("Retrying failed part:", r)
-            job_name = r[0]
-            job_start = r[1][0]
-            job_end = r[1][1]
+            job_name = r.name
+            job_start = r.start
+            job_end = r.end
         else:
             # update the current number of job parts
             self.split_job.parts = self.split_job.parts + 1
@@ -116,4 +116,4 @@ class SplitJobDispatcher(JobDispatcher):
         self.parts_lock.release()
 
         # Return the job to the worker node
-        return self.split_job, str(job_name), job_start, job_end
+        return self.split_job, ExportRange(str(job_name), job_start, job_end)

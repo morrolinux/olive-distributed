@@ -3,7 +3,7 @@ import Pyro4.core
 import Pyro4.errors
 import subprocess
 from Pyro4.util import SerializerBase
-from job import Job
+from job import Job, ExportRange
 from ssl_utils import CertCheckingProxy, LOCAL_HOSTNAME, SSL_CERTS_DIR
 from pathlib import Path
 import os
@@ -32,6 +32,7 @@ class WorkerNode:
         self.job_dispatcher = CertCheckingProxy('PYRO:JobDispatcher@' + self.MASTER_ADDRESS + ':9090')
         self.nfs_mounter = CertCheckingProxy('PYRO:NfsMounter@' + 'localhost' + ':9092')
         SerializerBase.register_dict_to_class("job.Job", Job.job_dict_to_class)
+        SerializerBase.register_dict_to_class("job.ExportRange", ExportRange.export_range_dict_to_class)
 
     def job_eta(self, j=None):
         if self.sample_time is None or self.sample_weight is None:
@@ -69,7 +70,7 @@ class WorkerNode:
 
     def __run(self):
         while True:
-            j, name, start, end = self.job_dispatcher.get_job(self)
+            j, export_range = self.job_dispatcher.get_job(self)
             print("got job:", j)
             if j.job_path == "abort":
                 print(self.address, "\tterminating...")
@@ -82,27 +83,23 @@ class WorkerNode:
             # mount the NFS share before starting
             if self.nfs_mounter.mount(j.job_path, self.MASTER_ADDRESS, self.MOUNTPOINT_DEFAULT,
                                       self.worker_options["nfs_tuning"]) != 0:
-                self.job_dispatcher.report(self, j, -1, {name: (start, end)})
+                self.job_dispatcher.report(self, j, -1, export_range)
                 return
-            self.run_job(j, name, start, end)
+            self.run_job(j, export_range)
 
-    def run_job(self, j, name, start, end):
+    def run_job(self, j, export_range):
         self._job_start_time = time.time()
         self._job = j
 
         project_path = j.job_path[j.job_path.rfind("/") + 1:]
         olive_args = ['olive-editor', project_path, '-e']
 
-        job_name = ": "
-        if name is not None:
-            olive_args.append(str(name))
-            job_name = job_name + str(name)
-        if start is not None:
+        if export_range is not None:
+            olive_args.append(str(export_range.name))
             olive_args.append('--export-start')
-            olive_args.append(str(start))
-        if end is not None:
+            olive_args.append(str(export_range.start))
             olive_args.append('--export-end')
-            olive_args.append(str(end))
+            olive_args.append(str(export_range.end))
 
         initial_folder = os.getcwd()
         os.chdir(self.MOUNTPOINT_DEFAULT)
@@ -118,7 +115,7 @@ class WorkerNode:
         #     olive_export = subprocess.run(['false'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)   # failure
 
         if olive_export.returncode == 0:
-            print("Exported successfully:", j.job_path, job_name)
+            print("Exported successfully:", j.job_path, export_range.name)
         else:
             print("Error exporting", j.job_path, "\n", olive_export.stdout, olive_export.stderr)
 
@@ -126,7 +123,7 @@ class WorkerNode:
         if not j.split:
             self.nfs_mounter.umount(self.MOUNTPOINT_DEFAULT)
 
-        self.job_dispatcher.report(self, j, olive_export.returncode, {name: (start, end)})
+        self.job_dispatcher.report(self, j, olive_export.returncode, export_range)
 
         self.sample_weight = j.job_weight
         self.sample_time = time.time() - self._job_start_time
