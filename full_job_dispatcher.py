@@ -22,7 +22,7 @@ class FullJobDispatcher(JobDispatcher):
     def get_job(self, n):
         if len(self.jobs) <= 0:
             print("PROJECT MANAGER: no more work to do")
-            return abort_job, None, None, None
+            return abort_job, None
 
         if self.first_run:
             import time
@@ -43,7 +43,7 @@ class FullJobDispatcher(JobDispatcher):
         assigned_job = min(self.jobs, key=lambda x: abs(x.job_weight - fuzzy_job_weight))
 
         if assigned_job is None:
-            return abort_job, None, None, None
+            return abort_job, None
 
         # Slow tail fix:
         # if there are more nodes than jobs, check weather a faster node is about to finish its work before assignment
@@ -54,7 +54,7 @@ class FullJobDispatcher(JobDispatcher):
                 w_eta = worker.job_eta() + worker.job_eta(assigned_job)
                 n_eta = n.job_eta(assigned_job)
                 if w_eta < n_eta:
-                    return abort_job, None, None, None
+                    return abort_job, None
 
         # Export the folder via NFS so that the worker node can access it
         self.nfs_exporter.export(assigned_job.job_path, to=n.address)
@@ -62,4 +62,4 @@ class FullJobDispatcher(JobDispatcher):
         print(n.address + "\trunning job: ", assigned_job.job_path[assigned_job.job_path.rfind("/")+1:],
               "\tWeight: ", assigned_job.job_weight)
         self.jobs.remove(assigned_job)
-        return assigned_job, None, None, None
+        return assigned_job, None

@@ -31,8 +31,8 @@ class WorkerNode:
         self.worker_options = dict()
         self.job_dispatcher = CertCheckingProxy('PYRO:JobDispatcher@' + self.MASTER_ADDRESS + ':9090')
         self.nfs_mounter = CertCheckingProxy('PYRO:NfsMounter@' + 'localhost' + ':9092')
-        SerializerBase.register_dict_to_class("job.Job", Job.job_dict_to_class)
         SerializerBase.register_dict_to_class("job.ExportRange", ExportRange.export_range_dict_to_class)
+        SerializerBase.register_dict_to_class("job.Job", Job.job_dict_to_class)
 
     def job_eta(self, j=None):
         if self.sample_time is None or self.sample_weight is None:
@@ -95,6 +95,11 @@ class WorkerNode:
         olive_args = ['olive-editor', project_path, '-e']
 
         if export_range is not None:
+            # TODO: This is a bit ugly. Fix if possible.
+            #  Here we need to call deserialization manually because of dynamic typing (not all implementations
+            #  of dispatcher return Job, ExportRange)
+            if isinstance(export_range, dict):
+                export_range = ExportRange.export_range_dict_to_class("job.ExportRange", export_range)
             olive_args.append(str(export_range.name))
             olive_args.append('--export-start')
             olive_args.append(str(export_range.start))

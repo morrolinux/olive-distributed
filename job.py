@@ -51,6 +51,7 @@ class Job:
 
     @staticmethod
     def job_dict_to_class(classname, d):
+        print("job_dict_to_class")
         j = Job(d["job_path"], d["job_weight"])
         j.len = d["len"]
         j.split = d["split"]
@@ -66,11 +67,21 @@ class ExportRange:
 
     @staticmethod
     def export_range_dict_to_class(classname, d):
+        print("export_range_dict_to_class")
         er = ExportRange(d["name"], d["start"], d["end"])
         return er
 
+    @staticmethod
+    def export_range_class_to_dict(obj):
+        print("export_range_class_to_dict")
+        return {
+            "name": obj.name,
+            "start": obj.start,
+            "end": obj.end
+        }
+
     def __str__(self):
-        return self.name + " : " + str(self.start) + " - " + str(self.end)
+        return str(self.name) + " : " + str(self.start) + " - " + str(self.end)
 
 
 abort_job = Job("abort", -1)
