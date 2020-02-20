@@ -16,6 +16,8 @@ class SplitJobDispatcher(JobDispatcher):
         self.worker_fails = dict()
         self.failed_ranges = set()
         self.completed_ranges = set()
+        self.last_assigned_frame = 0
+        self.job_parts = 0
         SerializerBase.register_dict_to_class("job.ExportRange", ExportRange.export_range_dict_to_class)
         SerializerBase.register_class_to_dict(ExportRange, ExportRange.export_range_class_to_dict)
 
@@ -34,7 +36,7 @@ class SplitJobDispatcher(JobDispatcher):
             total_len_covered = False
         else:
             total_len_covered = self.split_job.len == max(n.end for n in self.completed_ranges)
-        all_parts_done = self.split_job.parts == len(self.completed_ranges)
+        all_parts_done = self.job_parts == len(self.completed_ranges)
         no_failed_ranges = len(self.failed_ranges) == 0
         return total_len_covered and all_parts_done and no_failed_ranges
 
@@ -64,9 +66,7 @@ class SplitJobDispatcher(JobDispatcher):
 
     @Pyro4.expose
     def report(self, node, job, exit_status, export_range):
-        if isinstance(export_range, dict):
-            export_range = ExportRange.export_range_dict_to_class("job.ExportRange", export_range)
-        print("NODE", node.address, "completed part", export_range, "with status", exit_status)
+        print("NODE", node.address, "completed part", export_range, "with status:", exit_status)
         # If export failed, re-insert the failed range
         if exit_status != 0:
             self.fail_range(export_range)
@@ -84,10 +84,10 @@ class SplitJobDispatcher(JobDispatcher):
     @Pyro4.expose
     def get_job(self, n):
         if self.split_job_finished():
-            return abort_job, None      # TODO: consider grouping name, start, end into a range object
+            return abort_job, None
 
         if self.first_run:
-            print("waiting to see if any other workers are joining us...")
+            print("Welcome, " + str(n.address) + ".\n waiting to see if any other workers are joining us...")
             time.sleep(5)
             self.first_run = False
 
@@ -95,7 +95,7 @@ class SplitJobDispatcher(JobDispatcher):
 
         self.parts_lock.acquire()
 
-        # assign the given worker a chunk size proportional to its rank
+        # Assign the given worker a chunk size proportional to its rank
         tot_workers_score = sum(worker.cpu_score for worker in self.workers)
         if len(self.workers) > 1:
             s = 900
@@ -103,11 +103,11 @@ class SplitJobDispatcher(JobDispatcher):
         else:
             chunk_size = 1800
 
-        # where to start/end the chunk (and update seek)
+        # Where to start/end the chunk (+ update seek)
         # TODO: Make sure to ALWAYS match keyframes... (should probably be done in Olive)
-        job_start = self.split_job.last_assigned_frame
+        job_start = self.last_assigned_frame
         job_end = min(job_start + chunk_size, self.split_job.len)
-        self.split_job.last_assigned_frame = job_end
+        self.last_assigned_frame = job_end
 
         # If we're still working but all frames have been assigned, check if there are failed ranges left
         if job_end - job_start == 0:
@@ -128,8 +128,8 @@ class SplitJobDispatcher(JobDispatcher):
             print("Retrying failed part:", r)
         else:
             # update the current number of job parts
-            self.split_job.parts += 1
-            r = ExportRange(self.split_job.parts, job_start, job_end)
+            self.job_parts += 1
+            r = ExportRange(self.job_parts, job_start, job_end)
 
         print(n.address, "will export part", r, "(", r.end - r.start, "frames )")
 

@@ -4,8 +4,6 @@ class Job:
         self.job_weight = job_weight
         self.len = job_weight
         self.split = split
-        self.last_assigned_frame = 0
-        self.parts = 0
 
     def __str__(self):
         return "" + self.job_path + " : " + str(self.job_weight)
@@ -33,7 +31,6 @@ class Job:
         j = Job(d["job_path"], d["job_weight"])
         j.len = d["len"]
         j.split = d["split"]
-        j.last_assigned_frame = d["last_assigned_frame"]
         return j
 
 
