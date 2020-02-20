@@ -68,7 +68,7 @@ class SplitJobDispatcher(JobDispatcher):
 
     @Pyro4.expose
     def report(self, node, job, exit_status, export_range):
-        print("NODE", node.address, "completed part", export_range, "with status:", exit_status)
+        print(" ", node.address, "completed part", export_range, "with status:", exit_status)
         self.ongoing_ranges.remove(export_range)
         # If export failed, re-insert the failed range
         if exit_status != 0:
@@ -141,7 +141,7 @@ class SplitJobDispatcher(JobDispatcher):
             r = ExportRange(self.job_parts, job_start, job_end)
             self.ongoing_ranges.add(r)
 
-        print(n.address, "will export part", r, "(", r.end - r.start, "frames )")
+        print(n.address, "will export part", r)
 
         # Beware the possible race condition that could happen if parts,start,end
         # get changed just after releasing this lock and before returning them to the worker

@@ -10,7 +10,7 @@ class FullJobDispatcher(JobDispatcher):
 
     @Pyro4.expose
     def report(self, node, job, exit_status, export_range=None):
-        print("NODE", node.address, "completed job", job.job_path, "with status", exit_status)
+        print("\t", node.address, "completed job", job.job_path, "with status", exit_status)
         # If the export fails, re-insert it in the job queue
         if exit_status != 0:
             self.jobs.append(job)

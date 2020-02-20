@@ -54,7 +54,8 @@ class ExportRange:
         }
 
     def __str__(self):
-        return str(self.name) + " : " + str(self.start) + " - " + str(self.end)
+        return str(self.name) + " : {" + str(self.start) + " - " + str(self.end) + \
+               "} | (" + str(self.end - self.start) + " frames)"
 
     def __hash__(self):
         return hash(self.name)
