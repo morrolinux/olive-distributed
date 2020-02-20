@@ -3,3 +3,11 @@ venv
 nodes.bak
 __pycache__/*
 nodes.txt
+*.pem
+ssl/certs/*.conf
+ssl/certs/*.key
+ssl/certs/*.crt
+ssl/certs/*.csr
+ssl/certs/*.srl
+ssl/certs/whoismaster
+bench/sample.ove.mp4

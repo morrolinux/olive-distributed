@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import argparse
-import threading
 from project_manager import ProjectManager
-from render_node import RenderNode
+from full_job_dispatcher import FullJobDispatcher
+from split_job_dispatcher import SplitJobDispatcher
+from global_settings import settings
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--folder", dest='folder', help="folder containing projects folders")
@@ -21,29 +22,23 @@ if __name__ == '__main__':
         print("usage: --folder <folder> | --project <file>")
         exit()
 
-    print("\n=============== Nodes Setup ===============")
-    # instantiate (and benchmark) a new node object for each node found in list
-    render_nodes = []
-    benchmark_threads = []
-    for n in get_render_nodes():
-        render_nodes.append(RenderNode(n))
-        benchmark_threads.append(threading.Thread(target=render_nodes[-1].run_benchmark))
-        benchmark_threads[-1].start()
-
     # initialize the project manager with the render nodes
-    project_manager = ProjectManager(render_nodes)
+    project_manager = ProjectManager()
+
     # and feed it the job(s) to be done
+    job_dispatcher = None
     if args.folder is not None:
+        settings.dispatcher["workflow"] = "full"
         project_manager.explore(args.folder)
+        job_dispatcher = FullJobDispatcher()
+        job_dispatcher.jobs = project_manager.jobs
     elif args.project is not None:
+        settings.dispatcher["workflow"] = "split"
         project_manager.add(args.project, part=True)
+        job_dispatcher = SplitJobDispatcher()
+        job_dispatcher.split_job = project_manager.jobs[0]
+    else:
+        print("invalid options")
+        exit()
 
-    # wait for benchmark results from all hosts
-    for b in benchmark_threads:
-        b.join()
-
-    # start nodes
-    print("\n============ Starting Nodes ===============")
-    for n in render_nodes:
-        n.run()
-
+    job_dispatcher.start()
