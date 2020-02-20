@@ -44,8 +44,13 @@ class SplitJobDispatcher(JobDispatcher):
 
     def write_concat_list(self, list_name):
         with open(list_name, "w") as m:
-            for p in range(1, len(self.completed_ranges) + 1):
-                m.write("file \'" + str(p) + ".mp4\'\n")
+            parts = list(self.completed_ranges)
+            parts.sort()
+            for p in parts:
+                m.write("file \'" + str(p.instance_id) + ".mp4\'\n")
+
+            # for p in range(1, len(self.completed_ranges) + 1):
+            #     m.write("file \'" + str(p) + ".mp4\'\n")
 
     def merge_parts(self, output_name):
         os.chdir(self.split_job.job_path[:self.split_job.job_path.rfind("/")])
@@ -53,8 +58,8 @@ class SplitJobDispatcher(JobDispatcher):
         self.write_concat_list(list_name)
         os.system("ffmpeg -f concat -safe 0 -i " + list_name + " -c copy " + output_name + ".mp4" + " -y")
         os.remove(list_name)
-        for p in range(1, len(self.completed_ranges) + 1):
-            os.remove(str(p) + ".mp4")
+        for p in self.completed_ranges:
+            os.remove(str(p.instance_id) + ".mp4")
 
     def remove_shares(self):
         for worker in self.workers:
@@ -138,7 +143,7 @@ class SplitJobDispatcher(JobDispatcher):
         else:
             # update the current number of job parts
             self.job_parts += 1
-            r = ExportRange(self.job_parts, job_start, job_end)
+            r = ExportRange(self.job_parts, job_start, job_end, random.randint(1, 9999999999))
             self.ongoing_ranges.add(r)
 
         print(n.address, "will export part", r)

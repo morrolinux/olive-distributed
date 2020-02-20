@@ -35,14 +35,15 @@ class Job:
 
 
 class ExportRange:
-    def __init__(self, name, start, end):
+    def __init__(self, name, start, end, instance_id):
         self.name = name
         self.start = start
         self.end = end
+        self.instance_id = instance_id
 
     @staticmethod
     def export_range_dict_to_class(classname, d):
-        er = ExportRange(d["name"], d["start"], d["end"])
+        er = ExportRange(d["name"], d["start"], d["end"], d["instance_id"])
         return er
 
     @staticmethod
@@ -50,7 +51,8 @@ class ExportRange:
         return {
             "name": obj.name,
             "start": obj.start,
-            "end": obj.end
+            "end": obj.end,
+            "instance_id": obj.instance_id
         }
 
     def __str__(self):
@@ -62,6 +64,21 @@ class ExportRange:
 
     def __eq__(self, other):
         return self.name == other.name
+
+    def __lt__(self, other):
+        return self.name < other.name
+
+    def __le__(self, other):
+        return self.name <= other.name
+
+    def __ne__(self, other):
+        return self.name != other.name
+
+    def __gt__(self, other):
+        return self.name > other.name
+
+    def __ge__(self, other):
+        return self.name >= other.name
 
 
 abort_job = Job("abort", -1)
