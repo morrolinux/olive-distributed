@@ -6,6 +6,7 @@ from Pyro4.util import SerializerBase
 import os
 import math
 import time
+import random
 
 
 class SplitJobDispatcher(JobDispatcher):
@@ -14,6 +15,7 @@ class SplitJobDispatcher(JobDispatcher):
         self.split_job = None
         self.parts_lock = threading.Lock()
         self.worker_fails = dict()
+        self.ongoing_ranges = set()
         self.failed_ranges = set()
         self.completed_ranges = set()
         self.last_assigned_frame = 0
@@ -67,6 +69,7 @@ class SplitJobDispatcher(JobDispatcher):
     @Pyro4.expose
     def report(self, node, job, exit_status, export_range):
         print("NODE", node.address, "completed part", export_range, "with status:", exit_status)
+        self.ongoing_ranges.remove(export_range)
         # If export failed, re-insert the failed range
         if exit_status != 0:
             self.fail_range(export_range)
@@ -112,24 +115,31 @@ class SplitJobDispatcher(JobDispatcher):
         # If we're still working but all frames have been assigned, check if there are failed ranges left
         if job_end - job_start == 0:
             # If there are no failed jobs left, we are really done.
-            if len(self.failed_ranges) == 0:
-                self.parts_lock.release()
-                # Instead of terminating other workers, make them wait for a possible failed job to come
-                # from the last worker node
-                return Job("retry", 1), None
 
-            r = self.failed_ranges.pop()
-            # If a worker has already failed this specific range, don't attempt again
-            if r in self.worker_fails[n.address]:
+            if len(self.failed_ranges) > 0:
+                r = self.failed_ranges.pop()
+                # If a worker has already failed this specific range, don't attempt again
+                if r in self.worker_fails[n.address]:
+                    self.failed_ranges.add(r)
+                    self.parts_lock.release()
+                    return Job("retry", 1), None
+                self.ongoing_ranges.add(r)
+                print("Retrying failed part:", r)
+            # If there still are ongoing jobs, they *could* belong to crashed workers.
+            # We therefore assign them anyways. The first worker to finish will move them to the terminated set
+            elif len(self.ongoing_ranges) > 0:
+                # Extracting one random job so that if there are multiple ongoing ones we don't assign the same to all
+                r = list(self.ongoing_ranges)[random.randrange(0, len(self.ongoing_ranges))]
+            # If there are no more failed nor ongoing jobs, we really are finished.
+            else:
                 self.parts_lock.release()
-                self.failed_ranges.add(r)
-                return Job("retry", 1), None
+                return Job("abort", 0), None
 
-            print("Retrying failed part:", r)
         else:
             # update the current number of job parts
             self.job_parts += 1
             r = ExportRange(self.job_parts, job_start, job_end)
+            self.ongoing_ranges.add(r)
 
         print(n.address, "will export part", r, "(", r.end - r.start, "frames )")
 
