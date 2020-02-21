@@ -111,7 +111,10 @@ class SplitJobDispatcher(JobDispatcher):
 
         # If someone else already completed this job, just discard it
         if export_range in self.completed_ranges:
-            os.remove(str(export_range.instance_id) + ".mp4")
+            try:
+                os.remove(str(export_range.instance_id) + ".mp4")
+            except FileNotFoundError:
+                pass
         # Otherwise, if export failed, re-insert failed ranges
         elif exit_status != 0:
             self.fail_range(export_range)
