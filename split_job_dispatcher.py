@@ -38,13 +38,26 @@ class SplitJobDispatcher(JobDispatcher):
         except KeyError:
             pass
         # TODO: cleanup potential part files with instance name
+        self.print_queues()
 
     def complete_range(self, export_range):
         self.completed_ranges.add(export_range)
         try:
-            self.failed_ranges.remove(export_range)
+            self.ongoing_ranges.remove(export_range)
         except KeyError:
             pass
+        self.print_queues()
+
+    def print_queues(self):
+        print("============================================================")
+        print("COMPLETED RANGES:")
+        for r in self.completed_ranges:
+            print(r)
+        if(len(self.failed_ranges)) > 0:
+            print("FAILED RANGES:")
+            for r in self.failed_ranges:
+                print(r)
+        print("============================================================")
 
     def split_job_finished(self):
         if len(self.completed_ranges) == 0:
