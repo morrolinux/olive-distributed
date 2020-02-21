@@ -100,6 +100,7 @@ class WorkerNode:
             #  of dispatcher return Job, ExportRange)
             if isinstance(export_range, dict):
                 export_range = ExportRange.export_range_dict_to_class("job.ExportRange", export_range)
+            export_range.new_instance()
             olive_args.append(str(export_range.instance_id))
             olive_args.append('--export-start')
             olive_args.append(str(export_range.start))

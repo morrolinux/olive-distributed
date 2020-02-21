@@ -1,3 +1,6 @@
+import random
+
+
 class Job:
     def __init__(self, job_path, job_weight, split=False):
         self.job_path = job_path
@@ -35,11 +38,22 @@ class Job:
 
 
 class ExportRange:
-    def __init__(self, name, start, end, instance_id):
+    def __init__(self, name, start, end, instance_id=None):
         self.name = name
         self.start = start
         self.end = end
         self.instance_id = instance_id
+        if instance_id is None:
+            self.reset_instance()
+
+    def reset_instance(self):
+        self.new_instance(-1)
+
+    def new_instance(self, instance_id=None):
+        if instance_id is None:
+            self.instance_id = random.randint(1, 99999999)
+        else:
+            self.instance_id = instance_id
 
     @staticmethod
     def export_range_dict_to_class(classname, d):
