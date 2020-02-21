@@ -37,7 +37,10 @@ class SplitJobDispatcher(JobDispatcher):
             self.ongoing_ranges.remove(export_range)
         except KeyError:
             pass
-        # TODO: cleanup potential part files with instance name
+        try:
+            os.remove(str(export_range.instance_id) + ".mp4")
+        except FileNotFoundError:
+            pass
         self.print_queues()
 
     def complete_range(self, export_range):
@@ -50,11 +53,16 @@ class SplitJobDispatcher(JobDispatcher):
 
     def print_queues(self):
         print("============================================================")
-        print("COMPLETED RANGES:")
-        for r in self.completed_ranges:
-            print(r)
+        if (len(self.ongoing_ranges)) > 0:
+            print("ONGOING:")
+            for r in self.ongoing_ranges:
+                print(r)
+        if len(self.completed_ranges) > 0:
+            print("COMPLETED:")
+            for r in self.completed_ranges:
+                print(r)
         if(len(self.failed_ranges)) > 0:
-            print("FAILED RANGES:")
+            print("FAILED:")
             for r in self.failed_ranges:
                 print(r)
         print("============================================================")
@@ -85,6 +93,7 @@ class SplitJobDispatcher(JobDispatcher):
         os.system("ffmpeg -f concat -safe 0 -i " + list_name + " -c copy " + output_name + ".mp4" + " -y")
         os.remove(list_name)
         for p in self.completed_ranges:
+            print("removing: " + str(p.instance_id) + ".mp4")
             os.remove(str(p.instance_id) + ".mp4")
 
     def remove_shares(self):
@@ -103,8 +112,7 @@ class SplitJobDispatcher(JobDispatcher):
 
         # If someone else already completed this job, just discard it
         if export_range in self.completed_ranges:
-            # TODO: remove file from disk
-            pass
+            os.remove(str(export_range.instance_id) + ".mp4")
         # Otherwise, if export failed, re-insert failed ranges
         elif exit_status != 0:
             self.fail_range(export_range)
@@ -173,7 +181,7 @@ class SplitJobDispatcher(JobDispatcher):
             # update the current number of job parts
             self.job_parts += 1
             r = ExportRange(self.job_parts, job_start, job_end)
-            self.ongoing_ranges.add(r)
+            self.set_ongoing_range(r)
 
         print(n.address, "will export part", r)
 
