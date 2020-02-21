@@ -24,7 +24,6 @@ class SplitJobDispatcher(JobDispatcher):
         SerializerBase.register_class_to_dict(ExportRange, ExportRange.export_range_class_to_dict)
 
     def set_ongoing_range(self, r):
-        r.reset_instance()
         self.ongoing_ranges.add(r)
         try:
             self.failed_ranges.remove(r)
@@ -165,6 +164,7 @@ class SplitJobDispatcher(JobDispatcher):
                 if r in self.worker_fails[n.address]:
                     self.parts_lock.release()
                     return Job("retry", 1), None
+                r.new_instance(n.address + "-" + str(random.randrange(1, 9999)))
                 self.set_ongoing_range(r)
                 print("Retrying failed part:", r)
             # If there still are ongoing jobs, they *could* belong to crashed workers.
@@ -181,6 +181,7 @@ class SplitJobDispatcher(JobDispatcher):
             # update the current number of job parts
             self.job_parts += 1
             r = ExportRange(self.job_parts, job_start, job_end)
+            r.new_instance(n.address + "-" + str(random.randrange(1, 9999)))
             self.set_ongoing_range(r)
 
         print(n.address, "will export part", r)
