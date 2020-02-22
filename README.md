@@ -7,7 +7,7 @@ Software:
 
 Patched olive-editor to support partial export (until it's mainlined):
 
-`git clone https://github.com/morrolinux/olive.git morrolinux-olive && cd morrolinux-olive && git checkout 0.1.x'
+`git clone https://github.com/morrolinux/olive.git morrolinux-olive && cd morrolinux-olive && git checkout 0.1.x`
 
 `cmake . && make -j8 && sudo make install`
 
