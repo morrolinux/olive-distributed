@@ -38,8 +38,8 @@ class Job:
 
 
 class ExportRange:
-    def __init__(self, name, start, end, instance_id=None):
-        self.name = name
+    def __init__(self, number, start, end, instance_id=None):
+        self.number = number
         self.start = start
         self.end = end
         self.instance_id = instance_id
@@ -57,41 +57,41 @@ class ExportRange:
 
     @staticmethod
     def export_range_dict_to_class(classname, d):
-        er = ExportRange(d["name"], d["start"], d["end"], d["instance_id"])
+        er = ExportRange(d["number"], d["start"], d["end"], d["instance_id"])
         return er
 
     @staticmethod
     def export_range_class_to_dict(obj):
         return {
-            "name": obj.name,
+            "number": obj.number,
             "start": obj.start,
             "end": obj.end,
             "instance_id": obj.instance_id
         }
 
     def __str__(self):
-        return str(self.name) + " | (" + str(self.end - self.start) + " frames) | " + str(self.instance_id)
+        return str(self.number) + " | (" + str(self.end - self.start) + " frames) | " + str(self.instance_id)
 
     def __hash__(self):
-        return hash(self.name)
+        return hash(self.number)
 
     def __eq__(self, other):
-        return self.name == other.name
+        return self.number == other.number
 
     def __lt__(self, other):
-        return self.name < other.name
+        return self.number < other.number
 
     def __le__(self, other):
-        return self.name <= other.name
+        return self.number <= other.number
 
     def __ne__(self, other):
-        return self.name != other.name
+        return self.number != other.number
 
     def __gt__(self, other):
-        return self.name > other.name
+        return self.number > other.number
 
     def __ge__(self, other):
-        return self.name >= other.name
+        return self.number >= other.number
 
 
 abort_job = Job("abort", -1)

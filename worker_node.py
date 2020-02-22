@@ -71,10 +71,9 @@ class WorkerNode:
     def __run(self):
         while True:
             j, export_range = self.job_dispatcher.get_job(self)
-            print("got job:", j)
+            print("got job:", j, (export_range if export_range is not None else ""))
             if j.job_path == "abort":
                 print(self.address, "\tterminating...")
-                # In any case umount when finished
                 self.nfs_mounter.umount(self.MOUNTPOINT_DEFAULT)
                 return
             if j.job_path == "retry":
@@ -120,7 +119,7 @@ class WorkerNode:
         #     olive_export = subprocess.run(['false'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)   # failure
 
         if olive_export.returncode == 0:
-            print("Exported successfully:", j.job_path, export_range.name)
+            print("Exported successfully:", j.job_path, export_range.number)
         else:
             print("Error exporting", j.job_path, "\n", olive_export.stdout, olive_export.stderr)
 
