@@ -34,3 +34,23 @@ to enqueue multiple projects to be exported in parallel on multiple workers.
 Note1: Your master node can also be a worker node, just do the steps for worker nodes as well.
 
 Note2: Once set-up, worker nodes can come and go during a workload, fault tolerance should cope with changes at runtime.
+
+
+## Logic overview
+
+A master node is used to dispatch work amongst worker nodes. 
+The master node has a "NFS Exporter" service running as root and a "Job dispatcher" process running as user.
+Each worker node has a "NFS Mounter" service running as root and a "worker" process running as user.
+In both cases the user process communicates with the root process via Pyro (RMI) using a 2-Way SSL connection.
+The same approach is used for communication between workers and master:
+![Architecture](/doc/architecture.png?raw=true "architecture")
+
+When a job gets assigned to a worker, it is moved to the "ongoing" queue until a worker reports back on the exit status of the export: 
+- If it failed, it's moved to the "failed" queue
+- If it succeeded, it's moved to the "completed" queue
+
+When the main job queue becomes empty, "failed" jobs are assigned to free workers (if any).
+
+When the "failed" queue becomes empty as well, free workers are assigned "ongoing" jobs as they might belong to crashed/unreachable workers who couldn't report back. The first worker to finish an ongoing job gets to push it to the "completed" queue, the others get discarded:
+![States](/doc/states.png?raw=true "states")
+
