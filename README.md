@@ -1,7 +1,15 @@
 # olive-distributed
 
 ## Dependencies
+Software:
+
 `bind-tools python-pyro`
+
+Patched olive-editor to support partial export (until it's mainlined):
+
+`git clone https://github.com/morrolinux/olive.git morrolinux-olive && cd morrolinux-olive && git checkout 0.1.x'
+
+`cmake . && make -j8 && sudo make install`
 
 ## Setup
 On your "master" node, move to the ssl certs folder: `cd olive-distributed/ssl/certs`
