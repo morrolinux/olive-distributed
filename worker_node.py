@@ -66,11 +66,13 @@ class WorkerNode:
             self.worker_options.update(self.job_dispatcher.get_worker_options())
             self.job_dispatcher.join_work(self)
             self.__run()
-            return
 
     def __run(self):
         while True:
-            j, export_range = self.job_dispatcher.get_job(self)
+            try:
+                j, export_range = self.job_dispatcher.get_job(self)
+            except Pyro4.errors.CommunicationError:
+                return
             print("got job:", j, (export_range if export_range is not None else ""))
             if j.job_path == "abort":
                 print(self.address, "\tterminating...")
@@ -94,9 +96,8 @@ class WorkerNode:
         olive_args = ['olive-editor', project_path, '-e']
 
         if export_range is not None:
-            # TODO: This is a bit ugly. Fix if possible.
-            #  Here we need to call deserialization manually because of dynamic typing (not all implementations
-            #  of dispatcher return Job, ExportRange)
+            #  Here we need to call deserialization manually because of dynamic typing
+            #  ( not all implementations of dispatcher return (Job, ExportRange) )
             if isinstance(export_range, dict):
                 export_range = ExportRange.export_range_dict_to_class("job.ExportRange", export_range)
             olive_args.append(str(export_range.instance_id))
@@ -109,6 +110,7 @@ class WorkerNode:
         os.chdir(self.MOUNTPOINT_DEFAULT)
         olive_export = subprocess.run(olive_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         os.chdir(initial_folder)
+
         # dummy export jobs:
         # time.sleep((j.job_weight/self.cpu_score)/100)
         # time.sleep(1)
@@ -127,7 +129,10 @@ class WorkerNode:
         if not j.split:
             self.nfs_mounter.umount(self.MOUNTPOINT_DEFAULT)
 
-        self.job_dispatcher.report(self, j, olive_export.returncode, export_range)
+        try:
+            self.job_dispatcher.report(self, j, olive_export.returncode, export_range)
+        except Pyro4.errors.ConnectionClosedError:
+            return
 
         self.sample_weight = j.job_weight
         self.sample_time = time.time() - self._job_start_time
