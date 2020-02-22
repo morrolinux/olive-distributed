@@ -62,10 +62,12 @@ class WorkerNode:
                 time.sleep(1)
                 continue
 
-            self.run_benchmark()
+            if self.cpu_score is None or self.cpu_score == 0:
+                self.run_benchmark()
             self.worker_options.update(self.job_dispatcher.get_worker_options())
             self.job_dispatcher.join_work(self)
             self.__run()
+            time.sleep(1)
 
     def __run(self):
         while True:
@@ -121,7 +123,7 @@ class WorkerNode:
         #     olive_export = subprocess.run(['false'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)   # failure
 
         if olive_export.returncode == 0:
-            print("Exported successfully:", j.job_path, export_range.number)
+            print("Exported successfully:", j.job_path, (export_range.number if export_range is not None else ""))
         else:
             print("Error exporting", j.job_path, "\n", olive_export.stdout, olive_export.stderr)
 
