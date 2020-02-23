@@ -26,7 +26,7 @@ then
 		make DOMAIN=${2}.$(echo $fqn|cut -d. -f2-)
 		make DOMAIN=localhost NAME=${2}_local
 		echo $fqn > whoismaster
-		scp whoismaster rootCA.crt ${2}* ${2}:olive-distributed-rendering/ssl/certs/
+		scp whoismaster rootCA.crt ${2}* ${2}:olive-distributed/ssl/certs/
 	fi
 fi
 
