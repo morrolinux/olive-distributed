@@ -4,6 +4,7 @@ from Pyro4.util import SerializerBase
 from ssl_utils import CertCheckingProxy, CertValidatingDaemon
 from ssl_utils import LOCAL_HOSTNAME, SSL_CERTS_DIR
 from global_settings import settings
+from job import Job
 
 
 class JobDispatcher:
@@ -21,6 +22,7 @@ class JobDispatcher:
         self.daemon = None
         self.workers = []
         SerializerBase.register_dict_to_class("worker_node.WorkerNode", WorkerNode.node_dict_to_class)
+        SerializerBase.register_dict_to_class("job.Job", Job.job_dict_to_class)
         self.nfs_exporter = CertCheckingProxy('PYRO:NfsExporter@localhost:9091')
         self.first_run = True
 

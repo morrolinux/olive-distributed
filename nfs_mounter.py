@@ -47,6 +47,7 @@ class NfsMounter:
         if mounter.returncode != 0:
             print("There was an error mounting", path, "- I might not be able to access media.")
             print(mounter.stdout, mounter.stderr)
+            self.umount(mountpoint)
             return -1
         self._mounts.add(''.join(mount_options))
         return 0
@@ -54,7 +55,7 @@ class NfsMounter:
     @Pyro4.expose
     def umount(self, mountpoint):
         print("umounting", mountpoint)
-        if subprocess.run(['umount', mountpoint], stdout=subprocess.PIPE).returncode != 0:
+        if subprocess.run(['umount', '-f', mountpoint], stdout=subprocess.PIPE).returncode != 0:
             print("There was an error umounting", mountpoint, "- media might still be accessible.")
             return -1
         self._mounts.clear()
