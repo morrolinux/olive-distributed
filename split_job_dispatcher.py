@@ -166,6 +166,9 @@ class SplitJobDispatcher(JobDispatcher):
     def report(self, node, job, exit_status, export_range):
         print(" ", node.address, "completed part", export_range, "with status:", exit_status)
 
+        if isinstance(export_range, dict):
+            export_range = ExportRange.export_range_dict_to_class("job.ExportRange", export_range)
+
         # If someone else already completed this job, just discard it
         if export_range in self.completed_ranges:
             pass
