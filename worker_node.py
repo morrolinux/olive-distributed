@@ -118,7 +118,7 @@ class WorkerNode:
 
         # Move the exported video to the NFS share
         try:
-            shutil.move(export_range.instance_id, self.MOUNTPOINT_DEFAULT)
+            shutil.move(export_name, self.MOUNTPOINT_DEFAULT)
             file_moved = True
         except OSError:
             file_moved = False
