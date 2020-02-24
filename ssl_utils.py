@@ -1,6 +1,7 @@
 import Pyro4.core
 import socket
 import os
+from pathlib import Path
 
 # Doesn't work consistently
 # LOCAL_HOSTNAME = socket.gethostbyname_ex(socket.gethostname())[0]
@@ -16,6 +17,7 @@ def fqdn():
 
 LOCAL_HOSTNAME = fqdn()
 SSL_CERTS_DIR = "ssl/certs/"
+OD_FOLDER = str(Path.home()) + "/olive-distributed/"
 
 
 class CertCheckingProxy(Pyro4.core.Proxy):
