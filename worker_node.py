@@ -142,7 +142,7 @@ class WorkerNode:
             self.nfs_mounter.umount(self.MOUNTPOINT_DEFAULT)
 
         try:
-            self.job_dispatcher.report(self, j, olive_export.returncode + file_moved, export_range)
+            self.job_dispatcher.report(self, j, olive_export.returncode or not file_moved, export_range)
         except Pyro4.errors.ConnectionClosedError:
             return
 
