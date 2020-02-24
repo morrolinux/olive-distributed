@@ -135,14 +135,16 @@ class WorkerNode:
         if olive_export.returncode == 0 and file_moved:
             print("Job done:", j.job_path, (export_range.number if export_range is not None else ""))
         else:
-            print("Error exporting", j.job_path, "\n", olive_export.stdout, olive_export.stderr)
+            print("Error exporting", j.job_path, "\n", olive_export.stdout, "\n", olive_export.stderr)
+
+        return_code = int(olive_export.returncode or not file_moved)
 
         # If we completed a with a full job, umount. Otherwise umount on abort
         if not j.split:
             self.nfs_mounter.umount(self.MOUNTPOINT_DEFAULT)
 
         try:
-            self.job_dispatcher.report(self, j, olive_export.returncode or not file_moved, export_range)
+            self.job_dispatcher.report(self, j, return_code, export_range)
         except Pyro4.errors.ConnectionClosedError:
             return
 

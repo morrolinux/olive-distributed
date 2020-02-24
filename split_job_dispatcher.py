@@ -43,6 +43,7 @@ class SplitJobDispatcher(JobDispatcher):
         self.completed_ranges.add(export_range)
         try:
             self.ongoing_ranges.remove(export_range)
+            self.failed_ranges.remove(export_range)
         except KeyError:
             pass
         self.print_queues()
