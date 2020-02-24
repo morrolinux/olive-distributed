@@ -9,6 +9,8 @@ from pathlib import Path
 import os
 import sys
 import shutil
+import threading
+import signal
 
 
 class WorkerNode:
@@ -19,9 +21,6 @@ class WorkerNode:
     sys.excepthook = Pyro4.util.excepthook
 
     def __init__(self, address):
-        with open(OD_FOLDER + SSL_CERTS_DIR + 'whoismaster') as f:
-            self.MASTER_ADDRESS = f.read().strip()
-        self.MOUNTPOINT_DEFAULT = str(Path.home())+'/olive-share/'
         self.TEMP_DIR = '/tmp/olive'
         self.address = address
         self.cpu_score = 0
@@ -31,6 +30,18 @@ class WorkerNode:
         self.sample_weight = None
         self.sample_time = None
         self.worker_options = dict()
+        self.olive_export_process = None
+        self.terminating = False
+        self.MASTER_ADDRESS = None
+        self.MOUNTPOINT_DEFAULT = None
+        self.job_dispatcher = None
+        self.nfs_mounter = None
+
+    def setup(self):
+        signal.signal(signal.SIGINT, self.termination_handler)
+        with open(OD_FOLDER + SSL_CERTS_DIR + 'whoismaster') as f:
+            self.MASTER_ADDRESS = f.read().strip()
+        self.MOUNTPOINT_DEFAULT = str(Path.home())+'/olive-share/'
         self.job_dispatcher = CertCheckingProxy('PYRO:JobDispatcher@' + self.MASTER_ADDRESS + ':9090')
         self.nfs_mounter = CertCheckingProxy('PYRO:NfsMounter@' + 'localhost' + ':9092')
         SerializerBase.register_dict_to_class("job.ExportRange", ExportRange.export_range_dict_to_class)
@@ -48,6 +59,21 @@ class WorkerNode:
             t = 0
         return t
 
+    def termination_handler(self, signum, frame):
+        print("stopping threads and clean termination...")
+        self.terminating = True
+        quit(0)
+
+    def __connection_watchdog(self):
+        while not self.terminating:
+            time.sleep(5)
+            try:
+                self.job_dispatcher.test()
+            except Pyro4.errors.CommunicationError:
+                if self.olive_export_process is not None:
+                    print("Lost connection to the master, aborting ongoing exports...")
+                    self.olive_export_process.terminate()
+
     def run_benchmark(self):
         import random
         self.cpu_score = random.randrange(1, 10)
@@ -58,8 +84,9 @@ class WorkerNode:
     def run(self):
         if not Path(self.TEMP_DIR).exists():
             os.mkdir(self.TEMP_DIR)
+        threading.Thread(target=self.__connection_watchdog).start()
 
-        while True:
+        while not self.terminating:
             try:
                 print(self.job_dispatcher.test())
             except Pyro4.errors.CommunicationError as e:
@@ -115,7 +142,8 @@ class WorkerNode:
 
         # Do the actual export with the given parameters
         os.chdir(self.TEMP_DIR)
-        olive_export = subprocess.run(olive_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.olive_export_process = subprocess.Popen(olive_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.olive_export_process.wait()
         if export_range is not None:
             export_name = export_range.instance_id + ".mp4"
         else:
@@ -142,12 +170,13 @@ class WorkerNode:
         # else:
         #     olive_export = subprocess.run(['false'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)   # failure
 
-        if olive_export.returncode == 0 and file_moved:
+        if self.olive_export_process.returncode == 0 and file_moved:
             print("Job done:", j.job_path, (export_range.number if export_range is not None else ""))
         else:
-            print("Error exporting", j.job_path, "\n", olive_export.stdout, "\n", olive_export.stderr)
+            print("Error exporting", j.job_path, (export_range.number if export_range is not None else ""))
 
-        return_code = int(olive_export.returncode or not file_moved)
+        return_code = int(self.olive_export_process.returncode or not file_moved)
+        self.olive_export_process = None
 
         # If we completed a with a full job, umount. Otherwise umount on abort
         if not j.split:
@@ -157,6 +186,10 @@ class WorkerNode:
             self.job_dispatcher.report(self, j, return_code, export_range)
         except Pyro4.errors.ConnectionClosedError:
             return
+        except Pyro4.errors.CommunicationError:
+            return
+        except ConnectionRefusedError:
+            return
 
         self.sample_weight = j.job_weight
         self.sample_time = time.time() - self._job_start_time
@@ -164,7 +197,6 @@ class WorkerNode:
 
     @staticmethod
     def node_dict_to_class(classname, d):
-        # print("{deserializer hook, converting to class: %s}" % d)
         r = WorkerNode(d["address"])
         r.cpu_score = d["cpu_score"]
         r.net_score = d["net_score"]
