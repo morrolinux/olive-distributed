@@ -31,7 +31,7 @@ class JobDispatcher:
     @Pyro4.expose
     def get_worker_options(self):
         # options = {"nfs_tuning": ['-o', 'noacl,nocto,noatime,nodiratime']}
-        options = {"nfs_tuning": ['-o', 'async']}
+        options = {"nfs_tuning": ['-o', 'async,soft,timeo=30']}
         return options
 
     @Pyro4.expose

@@ -4,23 +4,25 @@ import Pyro4.errors
 import subprocess
 from Pyro4.util import SerializerBase
 from job import Job, ExportRange
-from ssl_utils import CertCheckingProxy, LOCAL_HOSTNAME, SSL_CERTS_DIR
+from ssl_utils import CertCheckingProxy, LOCAL_HOSTNAME, SSL_CERTS_DIR, OD_FOLDER
 from pathlib import Path
 import os
 import sys
+import shutil
 
 
 class WorkerNode:
     Pyro4.config.SSL = True
-    Pyro4.config.SSL_CACERTS = SSL_CERTS_DIR + "rootCA.crt"  # to make ssl accept the self-signed node cert
-    Pyro4.config.SSL_CLIENTCERT = SSL_CERTS_DIR + LOCAL_HOSTNAME + ".crt"
-    Pyro4.config.SSL_CLIENTKEY = SSL_CERTS_DIR + LOCAL_HOSTNAME + ".key"
+    Pyro4.config.SSL_CACERTS = OD_FOLDER + SSL_CERTS_DIR + "rootCA.crt"  # to make ssl accept the self-signed node cert
+    Pyro4.config.SSL_CLIENTCERT = OD_FOLDER + SSL_CERTS_DIR + LOCAL_HOSTNAME + ".crt"
+    Pyro4.config.SSL_CLIENTKEY = OD_FOLDER + SSL_CERTS_DIR + LOCAL_HOSTNAME + ".key"
     sys.excepthook = Pyro4.util.excepthook
 
     def __init__(self, address):
-        with open(SSL_CERTS_DIR + 'whoismaster') as f:
+        with open(OD_FOLDER + SSL_CERTS_DIR + 'whoismaster') as f:
             self.MASTER_ADDRESS = f.read().strip()
-        self.MOUNTPOINT_DEFAULT = str(Path.home())+'/olive-share'
+        self.MOUNTPOINT_DEFAULT = str(Path.home())+'/olive-share/'
+        self.TEMP_DIR = '/tmp/olive'
         self.address = address
         self.cpu_score = 0
         self.net_score = 0
@@ -50,10 +52,13 @@ class WorkerNode:
         import random
         self.cpu_score = random.randrange(1, 10)
         self.net_score = random.randrange(1, 10)
-        self.cpu_score = float(subprocess.run(['bench/bench-host.sh'], stdout=subprocess.PIPE).stdout)
+        self.cpu_score = float(subprocess.run([OD_FOLDER + 'bench/bench-host.sh'], stdout=subprocess.PIPE).stdout)
         print("node", self.address, "\t\tCPU:", self.cpu_score)
 
     def run(self):
+        if not Path(self.TEMP_DIR).exists():
+            os.mkdir(self.TEMP_DIR)
+
         while True:
             try:
                 print(self.job_dispatcher.test())
@@ -94,8 +99,8 @@ class WorkerNode:
         self._job_start_time = time.time()
         self._job = j
 
-        project_path = j.job_path[j.job_path.rfind("/") + 1:]
-        olive_args = ['olive-editor', project_path, '-e']
+        project_name = j.job_path[j.job_path.rfind("/") + 1:]
+        olive_args = ['olive-editor', self.MOUNTPOINT_DEFAULT + project_name, '-e']
 
         if export_range is not None:
             #  Here we need to call deserialization manually because of dynamic typing
@@ -108,10 +113,25 @@ class WorkerNode:
             olive_args.append('--export-end')
             olive_args.append(str(export_range.end))
 
-        initial_folder = os.getcwd()
-        os.chdir(self.MOUNTPOINT_DEFAULT)
+        # Do the actual export with the given parameters
+        os.chdir(self.TEMP_DIR)
         olive_export = subprocess.run(olive_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        os.chdir(initial_folder)
+        if export_range is not None:
+            export_name = export_range.instance_id + ".mp4"
+        else:
+            export_name = project_name + ".mp4"
+
+        # Move the exported video to the NFS share
+        try:
+            shutil.move(export_name, self.MOUNTPOINT_DEFAULT)
+            file_moved = True
+        except OSError:
+            file_moved = False
+
+        # cleanup partial files
+        for root, dirs, files in os.walk(self.TEMP_DIR):
+            for file in files:
+                os.remove(file)
 
         # dummy export jobs:
         # time.sleep((j.job_weight/self.cpu_score)/100)
@@ -122,17 +142,19 @@ class WorkerNode:
         # else:
         #     olive_export = subprocess.run(['false'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)   # failure
 
-        if olive_export.returncode == 0:
-            print("Exported successfully:", j.job_path, (export_range.number if export_range is not None else ""))
+        if olive_export.returncode == 0 and file_moved:
+            print("Job done:", j.job_path, (export_range.number if export_range is not None else ""))
         else:
-            print("Error exporting", j.job_path, "\n", olive_export.stdout, olive_export.stderr)
+            print("Error exporting", j.job_path, "\n", olive_export.stdout, "\n", olive_export.stderr)
+
+        return_code = int(olive_export.returncode or not file_moved)
 
         # If we completed a with a full job, umount. Otherwise umount on abort
         if not j.split:
             self.nfs_mounter.umount(self.MOUNTPOINT_DEFAULT)
 
         try:
-            self.job_dispatcher.report(self, j, olive_export.returncode, export_range)
+            self.job_dispatcher.report(self, j, return_code, export_range)
         except Pyro4.errors.ConnectionClosedError:
             return
 
