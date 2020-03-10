@@ -8,6 +8,7 @@ from global_settings import settings
 parser = argparse.ArgumentParser()
 parser.add_argument("--folder", dest='folder', help="folder containing projects folders")
 parser.add_argument("--project", dest='project', help="project file to be rendered on multiple nodes")
+parser.add_argument("--video", dest='video', help="video file to be compressed on multiple nodes")
 args = parser.parse_args()
 
 
@@ -18,8 +19,8 @@ def get_render_nodes():
 
 if __name__ == '__main__':
 
-    if args.folder is None and args.project is None:
-        print("usage: --folder <folder> | --project <file>")
+    if args.folder is None and args.project is None and args.video is None:
+        print("usage: --folder <folder> | --project <file> | --video <file>")
         exit()
 
     # initialize the project manager with the render nodes
@@ -29,12 +30,20 @@ if __name__ == '__main__':
     job_dispatcher = None
     if args.folder is not None:
         settings.dispatcher["workflow"] = "full"
+        settings.dispatcher["job_type"] = "project"
         project_manager.explore(args.folder)
         job_dispatcher = FullJobDispatcher()
         job_dispatcher.jobs = project_manager.jobs
     elif args.project is not None:
         settings.dispatcher["workflow"] = "split"
-        project_manager.add(args.project, part=True)
+        settings.dispatcher["job_type"] = "project"
+        project_manager.add_project(args.project, part=True)
+        job_dispatcher = SplitJobDispatcher()
+        job_dispatcher.split_job = project_manager.jobs[0]
+    elif args.video is not None:
+        settings.dispatcher["workflow"] = "split"
+        settings.dispatcher["job_type"] = "ffmpeg"
+        project_manager.add_video(args.video)
         job_dispatcher = SplitJobDispatcher()
         job_dispatcher.split_job = project_manager.jobs[0]
     else:

@@ -19,7 +19,8 @@ class NfsExporter:
     @staticmethod
     def __nfs4_syntax(path, to):
         # get the enclosing folder of the project
-        if path.find(".ove") > 0:
+        # TODO: refactor this into a more flexible and less hacky lookup
+        if ".ove" in path or ".mp4" in path:
             path = path[:path.rfind("/")]
         # apply destination
         if to is None:

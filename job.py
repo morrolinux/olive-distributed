@@ -70,7 +70,7 @@ class ExportRange:
         }
 
     def __str__(self):
-        return str(self.number) + " | (" + str(self.end - self.start) + " frames) | " + str(self.instance_id)
+        return str(self.number) + " | (len: " + str(self.end - self.start) + ") | " + str(self.instance_id)
 
     def __hash__(self):
         return hash(self.number)

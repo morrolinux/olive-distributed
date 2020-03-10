@@ -7,6 +7,7 @@ import os
 import math
 import time
 import random
+from global_settings import settings
 
 
 class SplitJobDispatcher(JobDispatcher):
@@ -119,11 +120,11 @@ class SplitJobDispatcher(JobDispatcher):
 
         # Assign the given worker a chunk size proportional to its rank
         tot_workers_score = sum(worker.cpu_score for worker in self.workers)
+        s = (900 if settings.dispatcher["job_type"] == "project" else 60)
         if len(self.workers) > 1:
-            s = 900
             chunk_size = s + math.ceil((n.cpu_score / tot_workers_score) * s)
         else:
-            chunk_size = 1800
+            chunk_size = s * 2
 
         # TODO: Make sure to ALWAYS match keyframes... (should probably be done in Olive)
         # Where to start/end the chunk (+ update seek)

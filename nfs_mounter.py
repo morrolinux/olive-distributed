@@ -22,7 +22,8 @@ class NfsMounter:
     @staticmethod
     def __nfs4_syntax(path, address):
         # get the enclosing folder of the project
-        if path.find(".ove") > 0:
+        # TODO: refactor this into a more flexible and less hacky lookup
+        if ".ove" in path or ".mp4" in path:
             path = path[:path.rfind("/")]
         # add server address prefix
         path = address+":"+path

@@ -30,7 +30,7 @@ class WorkerNode:
         self.sample_weight = None
         self.sample_time = None
         self.worker_options = dict()
-        self.olive_export_process = None
+        self.export_process = None
         self.terminating = False
         self.MASTER_ADDRESS = None
         self.MOUNTPOINT_DEFAULT = None
@@ -70,9 +70,9 @@ class WorkerNode:
             try:
                 self.job_dispatcher.test()
             except Pyro4.errors.CommunicationError:
-                if self.olive_export_process is not None:
+                if self.export_process is not None:
                     print("Lost connection to the master, aborting ongoing exports...")
-                    self.olive_export_process.terminate()
+                    self.export_process.terminate()
 
     def run_benchmark(self):
         import random
@@ -127,23 +127,30 @@ class WorkerNode:
         self._job = j
 
         project_name = j.job_path[j.job_path.rfind("/") + 1:]
-        olive_args = ['olive-editor', self.MOUNTPOINT_DEFAULT + project_name, '-e']
-
         if export_range is not None:
             #  Here we need to call deserialization manually because of dynamic typing
             #  ( not all implementations of dispatcher return (Job, ExportRange) )
             if isinstance(export_range, dict):
                 export_range = ExportRange.export_range_dict_to_class("job.ExportRange", export_range)
-            olive_args.append(str(export_range.instance_id))
-            olive_args.append('--export-start')
-            olive_args.append(str(export_range.start))
-            olive_args.append('--export-end')
-            olive_args.append(str(export_range.end))
+
+        if self.worker_options["job_type"] == "ffmpeg":
+            export_args = ['ffmpeg', '-i', self.MOUNTPOINT_DEFAULT + project_name, '-ss', str(export_range.start)]
+            export_args.extend(self.worker_options["ffmpeg"]["encoder"])
+            export_args.extend(['-to', str(export_range.end), export_range.instance_id + ".mp4"])
+            print(export_args)
+        else:
+            export_args = ['olive-editor', self.MOUNTPOINT_DEFAULT + project_name, '-e']
+            if export_range is not None:
+                export_args.append(str(export_range.instance_id))
+                export_args.append('--export-start')
+                export_args.append(str(export_range.start))
+                export_args.append('--export-end')
+                export_args.append(str(export_range.end))
 
         # Do the actual export with the given parameters
         os.chdir(self.TEMP_DIR)
-        self.olive_export_process = subprocess.Popen(olive_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        self.olive_export_process.wait()
+        self.export_process = subprocess.Popen(export_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.export_process.wait()
         if export_range is not None:
             export_name = export_range.instance_id + ".mp4"
         else:
@@ -170,13 +177,14 @@ class WorkerNode:
         # else:
         #     olive_export = subprocess.run(['false'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)   # failure
 
-        if self.olive_export_process.returncode == 0 and file_moved:
+        if self.export_process.returncode == 0 and file_moved:
             print("Job done:", j.job_path, (export_range.number if export_range is not None else ""))
         else:
             print("Error exporting", j.job_path, (export_range.number if export_range is not None else ""))
+            print(self.export_process.stderr.read())
 
-        return_code = int(self.olive_export_process.returncode or not file_moved)
-        self.olive_export_process = None
+        return_code = int(self.export_process.returncode or not file_moved)
+        self.export_process = None
 
         # If we completed a with a full job, umount. Otherwise umount on abort
         if not j.split:
