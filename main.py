@@ -9,6 +9,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--folder", dest='folder', help="folder containing projects folders")
 parser.add_argument("--project", dest='project', help="project file to be rendered on multiple nodes")
 parser.add_argument("--video", dest='video', help="video file to be compressed on multiple nodes")
+parser.add_argument("--ffmpeg-options", dest='ffmpeg_options', help="ffmpeg codec options. Defaults are \"" +
+                                                                    " ".join(settings.ffmpeg['encoder']) + "\"")
 args = parser.parse_args()
 
 
@@ -43,6 +45,8 @@ if __name__ == '__main__':
     elif args.video is not None:
         settings.dispatcher["workflow"] = "split"
         settings.dispatcher["job_type"] = "ffmpeg"
+        if args.ffmpeg_options is not None:
+            settings.ffmpeg["encoder"] = args.ffmpeg_options.split()
         project_manager.add_video(args.video)
         job_dispatcher = SplitJobDispatcher()
         job_dispatcher.split_job = project_manager.jobs[0]
