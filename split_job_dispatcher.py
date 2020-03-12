@@ -22,6 +22,7 @@ class SplitJobDispatcher(JobDispatcher):
         self.cleanup_queue = set()
         self.last_assigned_frame = 0
         self.job_parts = 0
+        self.worker_skip_failed_jobs = False
         SerializerBase.register_dict_to_class("job.ExportRange", ExportRange.export_range_dict_to_class)
         SerializerBase.register_class_to_dict(ExportRange, ExportRange.export_range_class_to_dict)
 
@@ -120,7 +121,8 @@ class SplitJobDispatcher(JobDispatcher):
 
         # Assign the given worker a chunk size proportional to its rank
         tot_workers_score = sum(worker.cpu_score for worker in self.workers)
-        s = (900 if settings.dispatcher["job_type"] == "project" else 60)
+        s = (settings.dispatcher['chunk_size'] * 30 if settings.dispatcher["job_type"] == "project"
+             else settings.dispatcher['chunk_size'])
         if len(self.workers) > 1:
             chunk_size = s + math.ceil((n.cpu_score / tot_workers_score) * s)
         else:
@@ -137,7 +139,7 @@ class SplitJobDispatcher(JobDispatcher):
             if len(self.failed_ranges) > 0:
                 r = list(self.failed_ranges)[random.randrange(0, len(self.failed_ranges)) % len(self.failed_ranges)]
                 # If a worker has already failed this specific range, don't attempt again
-                if r in self.worker_fails[n.address]:
+                if r in self.worker_fails[n.address] and self.worker_skip_failed_jobs:
                     self.parts_lock.release()
                     return Job("retry", 1), None
             # If there still are ongoing jobs, they *could* belong to crashed/hanged workers.

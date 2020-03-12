@@ -11,6 +11,10 @@ parser.add_argument("--project", dest='project', help="project file to be render
 parser.add_argument("--video", dest='video', help="video file to be compressed on multiple nodes")
 parser.add_argument("--ffmpeg-options", dest='ffmpeg_options', help="ffmpeg codec options. Defaults are \"" +
                                                                     " ".join(settings.ffmpeg['encoder']) + "\"")
+parser.add_argument("--chunk-size", dest='chunk_size', help="chunk size (in seconds) for which to split the video "
+                                                            "across the nodes. Choose larger chunks for longer videos. "
+                                                            "Default: " + str(settings.dispatcher['chunk_size']))
+
 args = parser.parse_args()
 
 
@@ -30,6 +34,8 @@ if __name__ == '__main__':
 
     # and feed it the job(s) to be done
     job_dispatcher = None
+    if args.chunk_size is not None:
+        settings.dispatcher['chunk_size'] = int(args.chunk_size)
     if args.folder is not None:
         settings.dispatcher["workflow"] = "full"
         settings.dispatcher["job_type"] = "project"

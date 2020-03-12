@@ -149,7 +149,7 @@ class WorkerNode:
 
         # Do the actual export with the given parameters
         os.chdir(self.TEMP_DIR)
-        self.export_process = subprocess.Popen(export_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.export_process = subprocess.Popen(export_args)
         self.export_process.wait()
         if export_range is not None:
             export_name = export_range.instance_id + ".mp4"
@@ -181,7 +181,7 @@ class WorkerNode:
             print("Job done:", j.job_path, (export_range.number if export_range is not None else ""))
         else:
             print("Error exporting", j.job_path, (export_range.number if export_range is not None else ""))
-            print(self.export_process.stderr.read())
+            # print(self.export_process.stderr.read())
 
         return_code = int(self.export_process.returncode or not file_moved)
         self.export_process = None
