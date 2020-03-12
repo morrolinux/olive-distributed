@@ -134,14 +134,13 @@ class WorkerNode:
                 export_range = ExportRange.export_range_dict_to_class("job.ExportRange", export_range)
 
         if self.worker_options["job_type"] == "ffmpeg":
-            # export_args = ['ffmpeg', '-i', self.MOUNTPOINT_DEFAULT + project_name, '-ss', str(export_range.start)]
-            # export_args.extend(self.worker_options["ffmpeg"]["encoder"])
-            # export_args.extend(['-to', str(export_range.end), export_range.instance_id + ".mp4"])
-            # FASTER SEEK:
-            export_args = ['ffmpeg', '-ss', str(export_range.start), '-i', self.MOUNTPOINT_DEFAULT + project_name]
+            export_args = ['ffmpeg', '-i', self.MOUNTPOINT_DEFAULT + project_name, '-ss', str(export_range.start)]
             export_args.extend(self.worker_options["ffmpeg"]["encoder"])
-            export_args.extend(['-to', str(export_range.end), '-copyts', export_range.instance_id + ".mp4"])
-
+            export_args.extend(['-to', str(export_range.end), export_range.instance_id + ".mp4"])
+            # FASTER SEEK (but it doesn't quite work...):
+            # export_args = ['ffmpeg', '-ss', str(export_range.start), '-i', self.MOUNTPOINT_DEFAULT + project_name]
+            # export_args.extend(self.worker_options["ffmpeg"]["encoder"])
+            # export_args.extend(['-to', str(export_range.end), '-copyts', export_range.instance_id + ".mp4"])
             print(export_args)
         else:
             export_args = ['olive-editor', self.MOUNTPOINT_DEFAULT + project_name, '-e']
