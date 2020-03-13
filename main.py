@@ -11,7 +11,7 @@ parser.add_argument("--project", dest='project', help="project file to be render
 parser.add_argument("--video", dest='video', help="video file to be compressed on multiple nodes")
 parser.add_argument("--ffmpeg-options", dest='ffmpeg_options', help="ffmpeg codec options. Defaults are \"" +
                                                                     " ".join(settings.ffmpeg['encoder']) + "\"")
-parser.add_argument("--chunk-size", dest='chunk_size', help="chunk size (in seconds) for which to split the video "
+parser.add_argument("--chunk-size", dest='chunk_size', help="min. chunk size (in seconds) for which to split the video "
                                                             "across the nodes. Choose larger chunks for longer videos. "
                                                             "Default: " + str(settings.dispatcher['chunk_size']))
 
