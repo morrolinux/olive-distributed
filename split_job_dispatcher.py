@@ -64,6 +64,7 @@ class SplitJobDispatcher(JobDispatcher):
             print("FAILED:")
             for r in self.failed_ranges:
                 print(r)
+        print("==> " + str((sum(n.end - n.start for n in self.completed_ranges) / self.split_job.len) * 100) + "%")
         print("============================================================")
 
     def split_job_finished(self):
