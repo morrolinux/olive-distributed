@@ -8,6 +8,7 @@ import math
 import time
 import random
 from global_settings import settings
+import subprocess
 
 
 class SplitJobDispatcher(JobDispatcher):
@@ -87,7 +88,9 @@ class SplitJobDispatcher(JobDispatcher):
         os.chdir(self.split_job.job_path[:self.split_job.job_path.rfind("/")])
         list_name = "merge.txt"
         self.write_concat_list(list_name)
-        os.system("ffmpeg -f concat -safe 0 -i " + list_name + " -c copy " + output_name + ".mp4" + " -y")
+        p = subprocess.Popen(["ffmpeg", "-f", "concat", "-safe", "0", "-i", list_name, "-c", "copy",
+                              output_name+".mp4", "-y"])
+        p.wait()
         os.remove(list_name)
 
     def cleanup_parts(self):
