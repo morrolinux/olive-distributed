@@ -144,8 +144,8 @@ class WorkerNode:
                 export_args = ['ffmpeg']
             export_args.extend(['-i', self.MOUNTPOINT_DEFAULT + project_name, '-ss', str(export_range.start)])
             if vaapi_support and self.worker_options["ffmpeg"]["gpu"]:
-                export_args.extend(['-filter_hw_device', 'foo', '-vf', 'format=nv12|vaapi,hwupload',
-                                    '-c:v', 'h264_vaapi', '-c:a', 'copy'])
+                export_args.extend(['-filter_hw_device', 'foo', '-vf', 'format=nv12|vaapi,hwupload'])
+                export_args.extend(self.worker_options["ffmpeg"]["gpu_encoder"])
             else:
                 export_args.extend(self.worker_options["ffmpeg"]["encoder"])
             export_args.extend(['-to', str(export_range.end), export_range.instance_id + ".mp4"])

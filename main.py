@@ -11,11 +11,15 @@ parser.add_argument("--project", dest='project', help="project file to be render
 parser.add_argument("--video", dest='video', help="video file to be compressed on multiple nodes")
 parser.add_argument("--ffmpeg-options", dest='ffmpeg_options', help="ffmpeg codec options. Defaults are \"" +
                                                                     " ".join(settings.ffmpeg['encoder']) + "\"")
-parser.add_argument("--chunk-size", dest='chunk_size', help="min. chunk size (in seconds) for which to split the video "
-                                                            "across the nodes. Choose larger chunks for longer videos. "
-                                                            "Default: " + str(settings.dispatcher['chunk_size']))
-parser.add_argument("--gpu", dest='gpu', action='store_true', help="wether or not to use the GPU for encoding "
-                                                                   "(ffmpeg only) - this invalidates ffmpeg-options")
+parser.add_argument("--chunk-size", dest='chunk_size', help="base chunk size (in seconds) for which to split the video "
+                                                            "across the nodes. Use larger chunks for longer videos. "
+                                                            "Default: " + str(settings.dispatcher['chunk_size']) + "\n")
+parser.add_argument("--gpu", dest='gpu', action='store_true', help="wether or not to use the GPU for encoding " +
+                                                                   "(ffmpeg only) - this invalidates ffmpeg-options.")
+parser.add_argument("--gpu-options", dest='gpu_options', help="wether or not to use the GPU for encoding " +
+                                                              "(ffmpeg only) - this invalidates ffmpeg-options. " +
+                                                              "Defaults: \"" +
+                                                              " ".join(settings.ffmpeg['gpu_encoder']) + "\"")
 parser.set_defaults(gpu=False)
 
 args = parser.parse_args()
@@ -58,6 +62,8 @@ if __name__ == '__main__':
             settings.ffmpeg["encoder"] = args.ffmpeg_options.split()
         if args.gpu:
             settings.ffmpeg["gpu"] = True
+            if args.gpu_options is not None:
+                settings.ffmpeg["gpu_encoder"] = args.gpu_options.split()
         project_manager.add_video(args.video)
         job_dispatcher = SplitJobDispatcher()
         job_dispatcher.split_job = project_manager.jobs[0]
