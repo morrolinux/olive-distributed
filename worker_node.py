@@ -134,8 +134,20 @@ class WorkerNode:
                 export_range = ExportRange.export_range_dict_to_class("job.ExportRange", export_range)
 
         if self.worker_options["job_type"] == "ffmpeg":
-            export_args = ['ffmpeg', '-i', self.MOUNTPOINT_DEFAULT + project_name, '-ss', str(export_range.start)]
-            export_args.extend(self.worker_options["ffmpeg"]["encoder"])
+            # check for vaapi support:
+            vaapi_support = b'vaapi' in subprocess.Popen(['ffmpeg', '-hide_banner', '-encoders'],
+                                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.read()
+            if vaapi_support and self.worker_options["ffmpeg"]["gpu"]:
+                export_args = ['ffmpeg', '-init_hw_device', 'vaapi=foo:/dev/dri/renderD128', '-hwaccel', 'vaapi',
+                               '-hwaccel_output_format', 'vaapi', '-hwaccel_device', 'foo']
+            else:
+                export_args = ['ffmpeg']
+            export_args.extend(['-i', self.MOUNTPOINT_DEFAULT + project_name, '-ss', str(export_range.start)])
+            if vaapi_support and self.worker_options["ffmpeg"]["gpu"]:
+                export_args.extend(['-filter_hw_device', 'foo', '-vf', 'format=nv12|vaapi,hwupload',
+                                    '-c:v', 'h264_vaapi', '-c:a', 'copy'])
+            else:
+                export_args.extend(self.worker_options["ffmpeg"]["encoder"])
             export_args.extend(['-to', str(export_range.end), export_range.instance_id + ".mp4"])
             # FASTER SEEK (but it doesn't quite work...):
             # export_args = ['ffmpeg', '-ss', str(export_range.start), '-i', self.MOUNTPOINT_DEFAULT + project_name]
