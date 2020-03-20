@@ -50,6 +50,8 @@ class NfsExporter:
     @Pyro4.expose
     def unexport(self, path, to=None):
         path = self.__nfs4_syntax(path, to)
+        if path in self.exports:
+            self.exports.remove(path)
         print("unexporting", path)
         if subprocess.run(['exportfs', '-u', path], stdout=subprocess.PIPE).returncode != 0:
             print("There was an error unexporting", path, "- media might still be accessible.")
