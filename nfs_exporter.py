@@ -12,6 +12,9 @@ class NfsExporter:
     Pyro4.config.SSL_SERVERKEY = SSL_CERTS_DIR + socket.gethostname() + "_local.key"
     Pyro4.config.SSL_CACERTS = SSL_CERTS_DIR + "rootCA.crt"  # to make ssl accept the self-signed master cert
 
+    def __init__(self):
+        self.exports = []
+
     @Pyro4.expose
     def test(self):
         return "ok"
@@ -34,10 +37,15 @@ class NfsExporter:
         folder_uid = str(stat(path).st_uid)
         folder_gid = str(stat(path).st_gid)
         path = self.__nfs4_syntax(path, to)
+        # don't export twice
+        if path in self.exports:
+            return
         print("exporting", path)
         if subprocess.run(['exportfs', path, '-o', 'rw,all_squash,anonuid=' + folder_uid + ',anongid=' + folder_gid],
                           stdout=subprocess.PIPE).returncode != 0:
             print("There was an error exporting", path, "- Worker node might not be able to access media.")
+        else:
+            self.exports.append(path)
 
     @Pyro4.expose
     def unexport(self, path, to=None):

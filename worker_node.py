@@ -36,8 +36,10 @@ class WorkerNode:
         self.MOUNTPOINT_DEFAULT = None
         self.job_dispatcher = None
         self.nfs_mounter = None
+        self.gpu_enabled = None
 
-    def setup(self):
+    def setup(self, gpu=False):
+        self.gpu_enabled = gpu
         signal.signal(signal.SIGINT, self.termination_handler)
         with open(OD_FOLDER + SSL_CERTS_DIR + 'whoismaster') as f:
             self.MASTER_ADDRESS = f.read().strip()
@@ -62,6 +64,10 @@ class WorkerNode:
     def termination_handler(self, signum, frame):
         print("stopping threads and clean termination...")
         self.terminating = True
+        # cleanup partial files
+        for root, dirs, files in os.walk(self.TEMP_DIR):
+            for file in files:
+                os.remove(file)
         quit(0)
 
     def __connection_watchdog(self):
@@ -139,11 +145,11 @@ class WorkerNode:
                                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.read()
 
             export_args = ['ffmpeg']
-            if vaapi_support and self.worker_options["ffmpeg"]["gpu"]:
+            if vaapi_support and self.worker_options["ffmpeg"]["gpu"] and self.gpu_enabled:
                 export_args.extend(['-vaapi_device', '/dev/dri/renderD128'])
 
             export_args.extend(['-i', self.MOUNTPOINT_DEFAULT + project_name, '-ss', str(export_range.start)])
-            if vaapi_support and self.worker_options["ffmpeg"]["gpu"]:
+            if vaapi_support and self.worker_options["ffmpeg"]["gpu"] and self.gpu_enabled:
                 export_args.extend(['-vf', 'format=nv12|vaapi,hwupload'])
                 export_args.extend(self.worker_options["ffmpeg"]["gpu_encoder"])
             else:
@@ -174,11 +180,7 @@ class WorkerNode:
             file_moved = True
         except OSError:
             file_moved = False
-
-        # cleanup partial files
-        for root, dirs, files in os.walk(self.TEMP_DIR):
-            for file in files:
-                os.remove(file)
+            print("can't move", export_name, "to", self.MOUNTPOINT_DEFAULT)
 
         # dummy export jobs:
         # time.sleep((j.job_weight/self.cpu_score)/100)

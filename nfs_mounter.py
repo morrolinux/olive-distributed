@@ -39,7 +39,7 @@ class NfsMounter:
         mount_options = ['mount', path, mountpoint, '-w'] + nfs_options
 
         # Don't mount twice
-        if ''.join(mount_options) in self._mounts:
+        if ' '.join(mount_options) in self._mounts:
             return 0
 
         print("mounting", path)
@@ -51,6 +51,7 @@ class NfsMounter:
             self.umount(mountpoint)
             return -1
         self._mounts.add(''.join(mount_options))
+        print(self._mounts)
         return 0
 
     @Pyro4.expose
