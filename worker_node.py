@@ -134,28 +134,21 @@ class WorkerNode:
                 export_range = ExportRange.export_range_dict_to_class("job.ExportRange", export_range)
 
         if self.worker_options["job_type"] == "ffmpeg":
-            # check for vaapi support:
+            # check for vaapi support: TODO: improve this check by looking for the exact requested codec
             vaapi_support = b'vaapi' in subprocess.Popen(['ffmpeg', '-hide_banner', '-encoders'],
                                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.read()
+
+            export_args = ['ffmpeg']
             if vaapi_support and self.worker_options["ffmpeg"]["gpu"]:
-                export_args = ['ffmpeg', '-init_hw_device', 'vaapi=foo:/dev/dri/renderD128', '-hwaccel', 'vaapi',
-                               '-hwaccel_output_format', 'vaapi', '-hwaccel_device', 'foo']
-            else:
-                export_args = ['ffmpeg']
+                export_args.extend(['-vaapi_device', '/dev/dri/renderD128'])
+
             export_args.extend(['-i', self.MOUNTPOINT_DEFAULT + project_name, '-ss', str(export_range.start)])
             if vaapi_support and self.worker_options["ffmpeg"]["gpu"]:
-                export_args.extend(['-filter_hw_device', 'foo', '-vf', 'format=nv12|vaapi,hwupload'])
+                export_args.extend(['-vf', 'format=nv12|vaapi,hwupload'])
                 export_args.extend(self.worker_options["ffmpeg"]["gpu_encoder"])
             else:
                 export_args.extend(self.worker_options["ffmpeg"]["encoder"])
             export_args.extend(['-to', str(export_range.end), export_range.instance_id + ".mp4"])
-            # FASTER SEEK (but it doesn't quite work...):
-            # export_args = ['ffmpeg', '-ss', str(export_range.start), '-i', self.MOUNTPOINT_DEFAULT + project_name]
-            # export_args.extend(self.worker_options["ffmpeg"]["encoder"])
-            # export_args.extend(['-to', str(export_range.end), '-copyts'])
-            # if "copy" in self.worker_options["ffmpeg"]["encoder"]:
-            #     export_args.extend(['-avoid_negative_ts', '1'])
-            # export_args.extend([export_range.instance_id + ".mp4"])
             print(export_args)
         else:
             export_args = ['olive-editor', self.MOUNTPOINT_DEFAULT + project_name, '-e']
