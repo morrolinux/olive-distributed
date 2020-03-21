@@ -41,7 +41,7 @@ class NfsExporter:
         if path in self.exports:
             return
         print("exporting", path)
-        if subprocess.run(['exportfs', path, '-o', 'rw,all_squash,anonuid=' + folder_uid + ',anongid=' + folder_gid],
+        if subprocess.run(['exportfs', path, '-o', 'rw,sync,all_squash,anonuid=' + folder_uid + ',anongid=' + folder_gid],
                           stdout=subprocess.PIPE).returncode != 0:
             print("There was an error exporting", path, "- Worker node might not be able to access media.")
         else:

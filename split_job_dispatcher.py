@@ -89,8 +89,13 @@ class SplitJobDispatcher(JobDispatcher):
         list_name = "merge.txt"
         self.write_concat_list(list_name)
         p = subprocess.Popen(["ffmpeg", "-f", "concat", "-safe", "0", "-i", list_name, "-c", "copy",
-                              output_name + ".mp4", "-y"])
-        p.wait()
+                              output_name + ".mp4", "-y"]).wait()
+        if p == 0:
+            time.sleep(5)
+            print("Export merged. Finished!!!")
+        else:
+            print("ERROR merging. return code: ", p)
+
         os.remove(list_name)
 
     def cleanup_parts(self):
@@ -98,8 +103,8 @@ class SplitJobDispatcher(JobDispatcher):
             try:
                 print("removing: " + str(p) + ".mp4")
                 os.remove(str(p) + ".mp4")
-            except FileNotFoundError:
-                pass
+            except FileNotFoundError as e:
+                print(e)
 
     def remove_shares(self):
         for worker in self.workers:
@@ -191,6 +196,5 @@ class SplitJobDispatcher(JobDispatcher):
         if self.split_job_finished():
             self.remove_shares()
             self.merge_parts(self.split_job.job_path[self.split_job.job_path.rfind("/") + 1:])
-            print("Export merged. Finished!!!")
             self.cleanup_parts()
             self.daemon.shutdown()
