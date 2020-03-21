@@ -14,10 +14,9 @@ parser.add_argument("--ffmpeg-options", dest='ffmpeg_options', help="ffmpeg code
 parser.add_argument("--chunk-size", dest='chunk_size', help="base chunk size (in seconds) for which to split the video "
                                                             "across the nodes. Use larger chunks for longer videos. "
                                                             "Default: " + str(settings.dispatcher['chunk_size']) + "\n")
-parser.add_argument("--gpu", dest='gpu', action='store_true', help="wether or not to use the GPU for encoding " +
-                                                                   "(ffmpeg only) - this invalidates ffmpeg-options.")
-parser.add_argument("--gpu-options", dest='gpu_options', help="wether or not to use the GPU for encoding " +
-                                                              "(ffmpeg only) - this invalidates ffmpeg-options. " +
+parser.add_argument("--gpu", dest='gpu', action='store_true', help="wether or not to use the GPU VAAPI for encoding")
+
+parser.add_argument("--gpu-options", dest='gpu_options', help="GPU options to be used on nodes that supports it. " +
                                                               "Defaults: \"" +
                                                               " ".join(settings.ffmpeg['gpu_encoder']) + "\"")
 parser.set_defaults(gpu=False)

@@ -89,7 +89,7 @@ class SplitJobDispatcher(JobDispatcher):
         list_name = "merge.txt"
         self.write_concat_list(list_name)
         p = subprocess.Popen(["ffmpeg", "-f", "concat", "-safe", "0", "-i", list_name, "-c", "copy",
-                              output_name+".mp4", "-y"])
+                              output_name + ".mp4", "-y"])
         p.wait()
         os.remove(list_name)
 

@@ -68,6 +68,7 @@ class WorkerNode:
         for root, dirs, files in os.walk(self.TEMP_DIR):
             for file in files:
                 os.remove(file)
+        self.nfs_mounter.umount(self.MOUNTPOINT_DEFAULT)
         quit(0)
 
     def __connection_watchdog(self):
@@ -79,6 +80,7 @@ class WorkerNode:
                 if self.export_process is not None:
                     print("Lost connection to the master, aborting ongoing exports...")
                     self.export_process.terminate()
+                    self.nfs_mounter.umount(self.MOUNTPOINT_DEFAULT)
 
     def run_benchmark(self):
         import random
@@ -147,14 +149,14 @@ class WorkerNode:
             export_args = ['ffmpeg']
             if vaapi_support and self.worker_options["ffmpeg"]["gpu"] and self.gpu_enabled:
                 export_args.extend(['-vaapi_device', '/dev/dri/renderD128'])
-
-            export_args.extend(['-i', self.MOUNTPOINT_DEFAULT + project_name, '-ss', str(export_range.start)])
+            export_args.extend(['-ss', str(export_range.start), '-i', self.MOUNTPOINT_DEFAULT + project_name])
             if vaapi_support and self.worker_options["ffmpeg"]["gpu"] and self.gpu_enabled:
                 export_args.extend(['-vf', 'format=nv12|vaapi,hwupload'])
                 export_args.extend(self.worker_options["ffmpeg"]["gpu_encoder"])
             else:
                 export_args.extend(self.worker_options["ffmpeg"]["encoder"])
-            export_args.extend(['-to', str(export_range.end), export_range.instance_id + ".mp4"])
+            export_args.extend(['-t', str(export_range.end - export_range.start),
+                                export_range.instance_id + ".mp4"])
             print(export_args)
         else:
             export_args = ['olive-editor', self.MOUNTPOINT_DEFAULT + project_name, '-e']
