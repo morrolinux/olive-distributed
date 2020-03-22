@@ -91,7 +91,6 @@ class SplitJobDispatcher(JobDispatcher):
         p = subprocess.Popen(["ffmpeg", "-f", "concat", "-safe", "0", "-i", list_name, "-c", "copy",
                               output_name + ".mp4", "-y"]).wait()
         if p == 0:
-            time.sleep(5)
             print("Export merged. Finished!!!")
         else:
             print("ERROR merging. return code: ", p)
@@ -192,9 +191,8 @@ class SplitJobDispatcher(JobDispatcher):
         # If the split job export went fine, move the exported range to the completed ones
         else:
             self.complete_range(export_range)
-
-        if self.split_job_finished():
-            self.remove_shares()
-            self.merge_parts(self.split_job.job_path[self.split_job.job_path.rfind("/") + 1:])
-            self.cleanup_parts()
-            self.daemon.shutdown()
+            if self.split_job_finished():
+                self.remove_shares()
+                self.merge_parts(self.split_job.job_path[self.split_job.job_path.rfind("/") + 1:])
+                self.cleanup_parts()
+                self.daemon.shutdown()
